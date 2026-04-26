@@ -14,7 +14,7 @@ Current focus:
 
 - Keep the base GBA build setup stable.
 - Tune and iterate on the first playable movement prototype.
-- Current ROM behavior: placeholder player with left/right movement, gravity, and jetpack thrust.
+- Current ROM behavior: placeholder player with acceleration-based horizontal movement, gravity, and jetpack thrust.
 
 ## Requirements
 

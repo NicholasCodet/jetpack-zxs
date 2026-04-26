@@ -39,6 +39,7 @@ Success criteria:
 Goal: create the smallest playable movement prototype.
 
 Status: Prototype implemented on 2026-04-26
+Progress update: horizontal acceleration and friction refinement added on 2026-04-26.
 
 Tasks:
 

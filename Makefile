@@ -1,5 +1,5 @@
 # Minimal devkitPro/libgba Makefile for this project.
-# It builds jetpack_gba.gba from sources under src/.
+# It builds jetpack-zxs.gba from sources under src/.
 
 PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
@@ -19,7 +19,7 @@ ifeq ($(wildcard $(LIBGBA_LIB)/libgba.a),)
 $(error "libgba library not found at $(LIBGBA_LIB)/libgba.a")
 endif
 
-TARGET := roms/jetpack_gba
+TARGET := roms/jetpack-zxs
 BUILD := build
 SOURCES := src
 

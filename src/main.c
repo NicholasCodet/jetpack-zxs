@@ -13,7 +13,9 @@
 // Tunable movement constants (8.8 fixed-point for velocities/positions).
 #define PLAYER_WIDTH 8
 #define PLAYER_HEIGHT 8
-#define PLAYER_MOVE_SPEED TO_FIX(1)
+#define PLAYER_MOVE_ACCEL 32
+#define PLAYER_FRICTION 20
+#define PLAYER_MAX_MOVE_SPEED TO_FIX(1)
 #define PLAYER_GRAVITY 20
 #define PLAYER_THRUST 36
 #define PLAYER_MAX_RISE_SPEED TO_FIX(2)
@@ -72,6 +74,7 @@ int main(void)
 {
     int playerX;
     int playerY;
+    int playerVelX;
     int playerVelY;
     int oldPixelX;
     int oldPixelY;
@@ -93,6 +96,7 @@ int main(void)
 
     playerX = TO_FIX((SCREEN_WIDTH / 2) - (PLAYER_WIDTH / 2));
     playerY = floorY;
+    playerVelX = 0;
     playerVelY = 0;
 
     drawRect(FROM_FIX(playerX), FROM_FIX(playerY), PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
@@ -106,9 +110,26 @@ int main(void)
         oldPixelY = FROM_FIX(playerY);
 
         if (keys & KEY_LEFT) {
-            playerX -= PLAYER_MOVE_SPEED;
+            playerVelX -= PLAYER_MOVE_ACCEL;
         } else if (keys & KEY_RIGHT) {
-            playerX += PLAYER_MOVE_SPEED;
+            playerVelX += PLAYER_MOVE_ACCEL;
+        } else if (playerVelX > 0) {
+            playerVelX -= PLAYER_FRICTION;
+            if (playerVelX < 0) {
+                playerVelX = 0;
+            }
+        } else if (playerVelX < 0) {
+            playerVelX += PLAYER_FRICTION;
+            if (playerVelX > 0) {
+                playerVelX = 0;
+            }
+        }
+
+        if (playerVelX < -PLAYER_MAX_MOVE_SPEED) {
+            playerVelX = -PLAYER_MAX_MOVE_SPEED;
+        }
+        if (playerVelX > PLAYER_MAX_MOVE_SPEED) {
+            playerVelX = PLAYER_MAX_MOVE_SPEED;
         }
 
         if (keys & KEY_A) {
@@ -123,13 +144,16 @@ int main(void)
             playerVelY = PLAYER_MAX_FALL_SPEED;
         }
 
+        playerX += playerVelX;
         playerY += playerVelY;
 
         if (playerX < minX) {
             playerX = minX;
+            playerVelX = 0;
         }
         if (playerX > maxX) {
             playerX = maxX;
+            playerVelX = 0;
         }
 
         if (playerY < minY) {
