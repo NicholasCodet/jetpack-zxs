@@ -2,16 +2,17 @@
 
 ## Current status
 
-Current milestone: Milestone 0 — Project setup
+Current milestone: Milestone 1 — Player movement
 
-Status: Completed on 2026-04-26
+Status: In progress
 
 Current focus:
 
-- Keep the validated build baseline stable.
-- Begin Milestone 1 implementation.
+- Tune the first playable movement prototype.
+- Keep movement constants easy to adjust.
+- Prepare Milestone 2 platform implementation.
 
-Next milestone: Milestone 1 — Player movement
+Next milestone: Milestone 2 — Platforms
 
 ## Milestone 0 — Project setup
 
@@ -36,6 +37,8 @@ Success criteria:
 ## Milestone 1 — Player movement
 
 Goal: create the smallest playable movement prototype.
+
+Status: Prototype implemented on 2026-04-26
 
 Tasks:
 

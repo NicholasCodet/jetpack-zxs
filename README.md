@@ -8,13 +8,13 @@ The goal is not to create a pixel-perfect clone, but a faithful GBA reinterpreta
 
 ## Project status
 
-Current milestone: Milestone 0 — Project setup (completed)
+Current milestone: Milestone 1 — Player movement (in progress)
 
 Current focus:
 
 - Keep the base GBA build setup stable.
-- Start Milestone 1 implementation work next.
-- Current ROM behavior: bootable placeholder screen only.
+- Tune and iterate on the first playable movement prototype.
+- Current ROM behavior: placeholder player with left/right movement, gravity, and jetpack thrust.
 
 ## Requirements
 
@@ -40,7 +40,6 @@ Example:
 
 - D-pad left/right: move
 - A: jetpack thrust
-- B: shoot
 
 ## Gameplay overview
 

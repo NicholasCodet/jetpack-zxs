@@ -19,7 +19,7 @@ ifeq ($(wildcard $(LIBGBA_LIB)/libgba.a),)
 $(error "libgba library not found at $(LIBGBA_LIB)/libgba.a")
 endif
 
-TARGET := roms/jetpack-zxs
+TARGET := roms/jetpack_gba
 BUILD := build
 SOURCES := src
 
