@@ -4,13 +4,12 @@
 
 Current milestone: Milestone 2 — Platforms
 
-Status: In progress
+Status: Completed on 2026-04-26
 
 Current focus:
 
-- Tune static platform placement and landing behavior.
-- Keep movement and platform constants easy to adjust.
-- Validate one-way platform collisions in emulator.
+- Validate Milestone 2 in emulator and capture tuning notes.
+- Start Milestone 3 planning.
 
 Next milestone: Milestone 3 — Rocket parts
 
@@ -63,8 +62,8 @@ Success criteria:
 
 Goal: add the first level structure.
 
-Status: In progress
-Progress update: static platform rendering and basic one-way landing collisions added on 2026-04-26.
+Status: Completed on 2026-04-26
+Progress update: static platform rendering plus robust one-way landing collisions (with fixed-point crossing checks) completed on 2026-04-26.
 
 Tasks:
 

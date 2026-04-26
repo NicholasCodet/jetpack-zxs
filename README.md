@@ -8,13 +8,13 @@ The goal is not to create a pixel-perfect clone, but a faithful GBA reinterpreta
 
 ## Project status
 
-Current milestone: Milestone 2 — Platforms (in progress)
+Current milestone: Milestone 2 — Platforms (completed)
 
 Current focus:
 
 - Keep the base GBA build setup stable.
-- Add and tune static platform landing behavior.
-- Current ROM behavior: placeholder player with acceleration-based horizontal movement, gravity, jetpack thrust, floor collision, and one-way platform landing.
+- Start Milestone 3 planning.
+- Current ROM behavior: placeholder player with acceleration-based horizontal movement, gravity, jetpack thrust, floor collision, and robust one-way platform landing.
 
 ## Requirements
 
@@ -34,7 +34,7 @@ Open the generated `.gba` file in a Game Boy Advance emulator.
 
 Example:
 
-    mgba roms/jetpack_gba.gba
+    mgba roms/jetpack-zxs.gba
 
 ## Controls
 

@@ -26,7 +26,9 @@
 
 #define SKY_COLOR RGB5(2, 4, 10)
 #define FLOOR_COLOR RGB5(6, 6, 6)
-#define PLATFORM_COLOR RGB5(12, 18, 24)
+#define FLOOR_TOP_COLOR RGB5(12, 12, 12)
+#define PLATFORM_COLOR RGB5(8, 15, 10)
+#define PLATFORM_TOP_COLOR RGB5(16, 24, 19)
 #define PLAYER_COLOR RGB5(31, 31, 31)
 
 typedef struct {
@@ -91,13 +93,69 @@ static void drawPlatforms(void)
     unsigned int i;
 
     for (i = 0; i < PLATFORM_COUNT; i++) {
-        drawRect(
-            platforms[i].x,
-            platforms[i].y,
-            platforms[i].width,
-            platforms[i].height,
-            PLATFORM_COLOR
-        );
+        drawRect(platforms[i].x, platforms[i].y, platforms[i].width, 1, PLATFORM_TOP_COLOR);
+        if (platforms[i].height > 1) {
+            drawRect(
+                platforms[i].x,
+                platforms[i].y + 1,
+                platforms[i].width,
+                platforms[i].height - 1,
+                PLATFORM_COLOR
+            );
+        }
+    }
+}
+
+static void drawFloor(void)
+{
+    drawRect(0, FLOOR_TOP_Y, SCREEN_WIDTH, 1, FLOOR_TOP_COLOR);
+    if (FLOOR_HEIGHT > 1) {
+        drawRect(0, FLOOR_TOP_Y + 1, SCREEN_WIDTH, FLOOR_HEIGHT - 1, FLOOR_COLOR);
+    }
+}
+
+static void resolvePlatformLanding(int playerX, int previousPlayerY, int *playerY, int *playerVelY)
+{
+    int playerLeft;
+    int playerRight;
+    int previousBottomY;
+    int currentBottomY;
+    int bestPlatformTop;
+    int landingFound;
+    unsigned int i;
+
+    if (*playerVelY < 0) {
+        return;
+    }
+
+    playerLeft = FROM_FIX(playerX);
+    playerRight = playerLeft + PLAYER_WIDTH;
+    previousBottomY = previousPlayerY + TO_FIX(PLAYER_HEIGHT);
+    currentBottomY = *playerY + TO_FIX(PLAYER_HEIGHT);
+    bestPlatformTop = TO_FIX(SCREEN_HEIGHT + 1);
+    landingFound = 0;
+
+    for (i = 0; i < PLATFORM_COUNT; i++) {
+        int platformLeft = platforms[i].x;
+        int platformRight = platforms[i].x + platforms[i].width;
+        int platformTop = TO_FIX(platforms[i].y);
+
+        if (playerRight <= platformLeft || playerLeft >= platformRight) {
+            continue;
+        }
+        if (previousBottomY > platformTop || currentBottomY < platformTop) {
+            continue;
+        }
+
+        if (!landingFound || platformTop < bestPlatformTop) {
+            bestPlatformTop = platformTop;
+            landingFound = 1;
+        }
+    }
+
+    if (landingFound) {
+        *playerY = bestPlatformTop - TO_FIX(PLAYER_HEIGHT);
+        *playerVelY = 0;
     }
 }
 
@@ -112,11 +170,6 @@ int main(void)
     int oldPixelY;
     int pixelX;
     int pixelY;
-    int playerLeft;
-    int playerRight;
-    int prevBottom;
-    int newBottom;
-    unsigned int i;
     u16 keys;
 
     const int minX = 0;
@@ -129,7 +182,7 @@ int main(void)
 
     REG_DISPCNT = MODE_3 | BG2_ON;
     fillScreen(SKY_COLOR);
-    drawRect(0, FLOOR_TOP_Y, SCREEN_WIDTH, FLOOR_HEIGHT, FLOOR_COLOR);
+    drawFloor();
     drawPlatforms();
 
     playerX = TO_FIX((SCREEN_WIDTH / 2) - (PLAYER_WIDTH / 2));
@@ -202,29 +255,7 @@ int main(void)
             }
         }
 
-        if (playerVelY >= 0) {
-            playerLeft = FROM_FIX(playerX);
-            playerRight = playerLeft + PLAYER_WIDTH;
-            prevBottom = FROM_FIX(prevPlayerY) + PLAYER_HEIGHT;
-            newBottom = FROM_FIX(playerY) + PLAYER_HEIGHT;
-
-            for (i = 0; i < PLATFORM_COUNT; i++) {
-                int platformLeft = platforms[i].x;
-                int platformRight = platforms[i].x + platforms[i].width;
-                int platformTop = platforms[i].y;
-
-                if (playerRight <= platformLeft || playerLeft >= platformRight) {
-                    continue;
-                }
-                if (prevBottom > platformTop || newBottom < platformTop) {
-                    continue;
-                }
-
-                playerY = TO_FIX(platformTop - PLAYER_HEIGHT);
-                playerVelY = 0;
-                break;
-            }
-        }
+        resolvePlatformLanding(playerX, prevPlayerY, &playerY, &playerVelY);
 
         if (playerY > floorY) {
             playerY = floorY;
@@ -236,7 +267,7 @@ int main(void)
 
         if (pixelX != oldPixelX || pixelY != oldPixelY) {
             drawRect(oldPixelX, oldPixelY, PLAYER_WIDTH, PLAYER_HEIGHT, SKY_COLOR);
-            drawRect(0, FLOOR_TOP_Y, SCREEN_WIDTH, FLOOR_HEIGHT, FLOOR_COLOR);
+            drawFloor();
             drawPlatforms();
             drawRect(pixelX, pixelY, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
         }
