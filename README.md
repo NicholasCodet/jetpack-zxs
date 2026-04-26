@@ -8,13 +8,13 @@ The goal is not to create a pixel-perfect clone, but a faithful GBA reinterpreta
 
 ## Project status
 
-Current milestone: Milestone 1 — Player movement (in progress)
+Current milestone: Milestone 2 — Platforms (in progress)
 
 Current focus:
 
 - Keep the base GBA build setup stable.
-- Tune and iterate on the first playable movement prototype.
-- Current ROM behavior: placeholder player with acceleration-based horizontal movement, gravity, and jetpack thrust.
+- Add and tune static platform landing behavior.
+- Current ROM behavior: placeholder player with acceleration-based horizontal movement, gravity, jetpack thrust, floor collision, and one-way platform landing.
 
 ## Requirements
 

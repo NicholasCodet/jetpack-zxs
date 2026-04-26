@@ -26,7 +26,23 @@
 
 #define SKY_COLOR RGB5(2, 4, 10)
 #define FLOOR_COLOR RGB5(6, 6, 6)
+#define PLATFORM_COLOR RGB5(12, 18, 24)
 #define PLAYER_COLOR RGB5(31, 31, 31)
+
+typedef struct {
+    int x;
+    int y;
+    int width;
+    int height;
+} Platform;
+
+static const Platform platforms[] = {
+    { 24, 120, 64, 6 },
+    { 104, 92, 72, 6 },
+    { 174, 64, 52, 6 }
+};
+
+#define PLATFORM_COUNT (sizeof(platforms) / sizeof(platforms[0]))
 
 static void fillScreen(u16 color)
 {
@@ -70,16 +86,37 @@ static void drawRect(int x, int y, int width, int height, u16 color)
     }
 }
 
+static void drawPlatforms(void)
+{
+    unsigned int i;
+
+    for (i = 0; i < PLATFORM_COUNT; i++) {
+        drawRect(
+            platforms[i].x,
+            platforms[i].y,
+            platforms[i].width,
+            platforms[i].height,
+            PLATFORM_COLOR
+        );
+    }
+}
+
 int main(void)
 {
     int playerX;
     int playerY;
     int playerVelX;
     int playerVelY;
+    int prevPlayerY;
     int oldPixelX;
     int oldPixelY;
     int pixelX;
     int pixelY;
+    int playerLeft;
+    int playerRight;
+    int prevBottom;
+    int newBottom;
+    unsigned int i;
     u16 keys;
 
     const int minX = 0;
@@ -93,6 +130,7 @@ int main(void)
     REG_DISPCNT = MODE_3 | BG2_ON;
     fillScreen(SKY_COLOR);
     drawRect(0, FLOOR_TOP_Y, SCREEN_WIDTH, FLOOR_HEIGHT, FLOOR_COLOR);
+    drawPlatforms();
 
     playerX = TO_FIX((SCREEN_WIDTH / 2) - (PLAYER_WIDTH / 2));
     playerY = floorY;
@@ -144,6 +182,7 @@ int main(void)
             playerVelY = PLAYER_MAX_FALL_SPEED;
         }
 
+        prevPlayerY = playerY;
         playerX += playerVelX;
         playerY += playerVelY;
 
@@ -163,6 +202,30 @@ int main(void)
             }
         }
 
+        if (playerVelY >= 0) {
+            playerLeft = FROM_FIX(playerX);
+            playerRight = playerLeft + PLAYER_WIDTH;
+            prevBottom = FROM_FIX(prevPlayerY) + PLAYER_HEIGHT;
+            newBottom = FROM_FIX(playerY) + PLAYER_HEIGHT;
+
+            for (i = 0; i < PLATFORM_COUNT; i++) {
+                int platformLeft = platforms[i].x;
+                int platformRight = platforms[i].x + platforms[i].width;
+                int platformTop = platforms[i].y;
+
+                if (playerRight <= platformLeft || playerLeft >= platformRight) {
+                    continue;
+                }
+                if (prevBottom > platformTop || newBottom < platformTop) {
+                    continue;
+                }
+
+                playerY = TO_FIX(platformTop - PLAYER_HEIGHT);
+                playerVelY = 0;
+                break;
+            }
+        }
+
         if (playerY > floorY) {
             playerY = floorY;
             playerVelY = 0;
@@ -173,6 +236,8 @@ int main(void)
 
         if (pixelX != oldPixelX || pixelY != oldPixelY) {
             drawRect(oldPixelX, oldPixelY, PLAYER_WIDTH, PLAYER_HEIGHT, SKY_COLOR);
+            drawRect(0, FLOOR_TOP_Y, SCREEN_WIDTH, FLOOR_HEIGHT, FLOOR_COLOR);
+            drawPlatforms();
             drawRect(pixelX, pixelY, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
         }
     }

@@ -2,17 +2,17 @@
 
 ## Current status
 
-Current milestone: Milestone 1 — Player movement
+Current milestone: Milestone 2 — Platforms
 
 Status: In progress
 
 Current focus:
 
-- Tune the first playable movement prototype.
-- Keep movement constants easy to adjust.
-- Prepare Milestone 2 platform implementation.
+- Tune static platform placement and landing behavior.
+- Keep movement and platform constants easy to adjust.
+- Validate one-way platform collisions in emulator.
 
-Next milestone: Milestone 2 — Platforms
+Next milestone: Milestone 3 — Rocket parts
 
 ## Milestone 0 — Project setup
 
@@ -62,6 +62,9 @@ Success criteria:
 ## Milestone 2 — Platforms
 
 Goal: add the first level structure.
+
+Status: In progress
+Progress update: static platform rendering and basic one-way landing collisions added on 2026-04-26.
 
 Tasks:
 
