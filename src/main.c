@@ -133,11 +133,11 @@ typedef struct {
 
 #define FUEL_WIDTH 6
 #define FUEL_HEIGHT 6
+#define FUEL_REQUIRED_COUNT 6
 #define FUEL_CARRY_OFFSET_X 1
 #define FUEL_CARRY_OFFSET_Y -7
 #define FUEL_FALL_SPEED 1
 #define FUEL_DROP_SPEED 1
-#define FUEL_SPAWN_X 122
 #define FUEL_SPAWN_Y PLAYFIELD_TOP
 #define FUEL_TARGET_X (SHIP_BASE_X + 1)
 #define FUEL_TARGET_Y (SHIP_BASE_Y + 1)
@@ -155,8 +155,10 @@ static const ShipPart shipPartDefaults[SHIP_PART_COUNT] = {
 };
 
 static const Fuel fuelDefault = {
-    FUEL_SPAWN_X, FUEL_SPAWN_Y, FUEL_TARGET_X, FUEL_TARGET_Y, FUEL_INACTIVE
+    0, FUEL_SPAWN_Y, FUEL_TARGET_X, FUEL_TARGET_Y, FUEL_INACTIVE
 };
+
+static const int fuelSpawnXs[FUEL_REQUIRED_COUNT] = { 36, 118, 192, 72, 170, 108 };
 
 static void fillScreen(u16 color)
 {
@@ -557,14 +559,23 @@ static int canDeliverFuel(const ShipPart *shipParts)
     return shipParts[SHIP_PART_INDEX_BODY].delivered && shipParts[SHIP_PART_INDEX_NOSE].delivered;
 }
 
+static int isFuelObjectiveComplete(int deliveredFuelCount)
+{
+    return deliveredFuelCount >= FUEL_REQUIRED_COUNT;
+}
+
 static int isShipAssembled(const ShipPart *shipParts)
 {
     return shipParts[SHIP_PART_INDEX_BODY].delivered && shipParts[SHIP_PART_INDEX_NOSE].delivered;
 }
 
-static void spawnFuel(Fuel *fuel)
+static void spawnNextFuel(Fuel *fuel, int fuelSpawnIndex)
 {
-    fuel->x = FUEL_SPAWN_X;
+    if (fuelSpawnIndex < 0 || fuelSpawnIndex >= FUEL_REQUIRED_COUNT) {
+        return;
+    }
+
+    fuel->x = fuelSpawnXs[fuelSpawnIndex];
     fuel->y = FUEL_SPAWN_Y;
     fuel->state = FUEL_FALLING_FROM_SKY;
 }
@@ -697,6 +708,8 @@ int main(void)
     int carriedPartIndex;
     int droppingPartIndex;
     int deliveredFuelCount;
+    int fuelSpawnIndex;
+    int fuelObjectiveComplete;
     int shipAssembled;
     int i;
     int changedParts[SHIP_PART_COUNT];
@@ -731,6 +744,8 @@ int main(void)
     carriedPartIndex = -1;
     droppingPartIndex = -1;
     deliveredFuelCount = 0;
+    fuelSpawnIndex = 0;
+    fuelObjectiveComplete = 0;
     for (i = 0; i < SHIP_PART_COUNT; i++) {
         shipParts[i] = shipPartDefaults[i];
     }
@@ -844,8 +859,13 @@ int main(void)
         }
 
         shipAssembled = isShipAssembled(shipParts);
-        if (fuel.state == FUEL_INACTIVE && shipAssembled) {
-            spawnFuel(&fuel);
+        if (
+            fuel.state == FUEL_INACTIVE &&
+            shipAssembled &&
+            !fuelObjectiveComplete &&
+            fuelSpawnIndex < FUEL_REQUIRED_COUNT
+        ) {
+            spawnNextFuel(&fuel, fuelSpawnIndex);
             fuelChanged = 1;
         }
 
@@ -921,10 +941,17 @@ int main(void)
             fuel.y += FUEL_DROP_SPEED;
             if (fuel.y >= fuel.targetY) {
                 fuel.y = fuel.targetY;
-                fuel.state = FUEL_DELIVERED;
                 deliveredFuelCount++;
-                if (deliveredFuelCount > 1) {
-                    deliveredFuelCount = 1;
+                if (deliveredFuelCount > FUEL_REQUIRED_COUNT) {
+                    deliveredFuelCount = FUEL_REQUIRED_COUNT;
+                }
+
+                if (isFuelObjectiveComplete(deliveredFuelCount)) {
+                    fuel.state = FUEL_DELIVERED;
+                    fuelObjectiveComplete = 1;
+                } else {
+                    fuel.state = FUEL_INACTIVE;
+                    fuelSpawnIndex++;
                 }
             }
             fuelChanged = 1;

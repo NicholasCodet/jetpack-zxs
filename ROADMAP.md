@@ -10,7 +10,7 @@ Current focus:
 
 - Tune HUD/playfield composition and ship delivery-zone behavior.
 - Validate two-part collection flow with one section pre-placed and drop-to-slot delivery behavior.
-- Start the fuel loop with one fuel that appears only after completed ship assembly, falls from the sky, then becomes pickable.
+- Expand the fuel loop to 6 deliveries with one active fuel at a time after ship assembly.
 
 Next milestone: Milestone 4 — Enemies
 
@@ -85,7 +85,7 @@ Success criteria:
 Goal: implement the main objective loop.
 
 Status: In progress
-Progress update: dirty-rectangle redraw retained, readable placeholder HUD text added, and Jetpac-like platform/ship composition refined with one pre-placed section plus two collectable parts delivered in enforced order (body then nose) using release-and-drop-to-slot behavior on 2026-05-24. Added first gated fuel prototype where fuel appears only after assembly, falls from the sky, then becomes pickable and deliverable (1 fuel) on 2026-05-24.
+Progress update: dirty-rectangle redraw retained, readable placeholder HUD text added, and Jetpac-like platform/ship composition refined with one pre-placed section plus two collectable parts delivered in enforced order (body then nose) using release-and-drop-to-slot behavior on 2026-05-24. Fuel loop now requires 6 deliveries with deterministic one-at-a-time sky spawns after assembly; each fuel falls, lands, becomes pickable, and auto-delivers on 2026-05-24.
 
 Tasks:
 
