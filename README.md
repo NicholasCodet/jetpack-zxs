@@ -41,6 +41,32 @@ Example:
 - D-pad left/right: move
 - A: jetpack thrust
 
+## Original gameplay reference
+
+The game is inspired by the structure of Jetpac on ZX Spectrum.
+
+Observed reference structure:
+
+- The game uses fixed-screen stages with three main platforms.
+- The player can leave the screen from one horizontal side and reappear on the opposite side.
+- Each stage features one active enemy type.
+- There are 8 enemy types, each with its own behavior pattern.
+- A full progression loop can be represented as 4 ships with 4 stages each, for a total of 16 stages.
+- Across those 16 stages, the 8 enemy types appear twice.
+
+Ship and stage structure:
+
+- Stage 1 of each ship requires assembling the ship from 3 parts, then collecting 6 fuel pods.
+- Stages 2, 3, and 4 of each ship require collecting 6 fuel pods only.
+- After 4 stages, the game moves to the next ship.
+- After 4 ships, the ship cycle loops.
+
+Additional pickups:
+
+- Fuel is required for stage progression.
+- Bonus collectibles can appear and award score.
+- Bonus collectibles are optional and are not required to complete a stage.
+
 ## Gameplay overview
 
 The player controls an astronaut using a jetpack to assemble a rocket, collect items, avoid or shoot enemies, and progress through increasingly difficult levels.
