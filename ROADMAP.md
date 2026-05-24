@@ -8,8 +8,8 @@ Status: In progress
 
 Current focus:
 
-- Tune the three-part ship pickup and delivery loop.
-- Validate item carry/delivery behavior in emulator.
+- Tune HUD/playfield composition and ship delivery-zone behavior.
+- Validate two-part collection flow with one section pre-placed.
 
 Next milestone: Milestone 4 — Enemies
 
@@ -84,7 +84,7 @@ Success criteria:
 Goal: implement the main objective loop.
 
 Status: In progress
-Progress update: placeholder ship base and three-part pickup/carry/delivery loop added on 2026-05-24.
+Progress update: HUD/playfield composition refined with dirty-rectangle redraw stability fix, ship near lower center, dedicated delivery zone, one pre-placed section, and two collectable parts delivered one-by-one on 2026-05-24.
 
 Tasks:
 

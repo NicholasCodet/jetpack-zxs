@@ -5,6 +5,9 @@
 
 #define SCREEN_WIDTH 240
 #define SCREEN_HEIGHT 160
+#define HUD_HEIGHT 16
+#define PLAYFIELD_TOP HUD_HEIGHT
+#define PLAYFIELD_BOTTOM (SCREEN_HEIGHT - 1)
 
 #define FIX_SHIFT 8
 #define TO_FIX(x) ((x) << FIX_SHIFT)
@@ -21,19 +24,25 @@
 #define PLAYER_MAX_RISE_SPEED TO_FIX(2)
 #define PLAYER_MAX_FALL_SPEED TO_FIX(2)
 
-#define FLOOR_HEIGHT 8
-#define FLOOR_TOP_Y (SCREEN_HEIGHT - FLOOR_HEIGHT)
+#define FLOOR_TOP_Y 146
+#define FLOOR_HEIGHT ((PLAYFIELD_BOTTOM + 1) - FLOOR_TOP_Y)
 
-#define SKY_COLOR RGB5(2, 4, 10)
-#define FLOOR_COLOR RGB5(6, 6, 6)
-#define FLOOR_TOP_COLOR RGB5(12, 12, 12)
+#define SKY_COLOR RGB5(0, 0, 0)
+#define FLOOR_COLOR RGB5(5, 5, 5)
+#define FLOOR_TOP_COLOR RGB5(11, 11, 11)
+#define HUD_COLOR RGB5(0, 0, 0)
+#define HUD_LINE_COLOR RGB5(13, 13, 13)
 #define PLATFORM_COLOR RGB5(8, 15, 10)
 #define PLATFORM_TOP_COLOR RGB5(16, 24, 19)
 #define SHIP_BASE_COLOR RGB5(14, 10, 8)
 #define SHIP_BASE_TOP_COLOR RGB5(22, 18, 14)
+#define SHIP_SECTION_COLOR RGB5(26, 22, 12)
 #define SHIP_PART_COLOR RGB5(24, 22, 8)
 #define SHIP_PART_DELIVERED_COLOR RGB5(30, 26, 10)
+#define DELIVERY_ZONE_COLOR RGB5(4, 4, 4)
+#define DELIVERY_ZONE_LINE_COLOR RGB5(8, 8, 8)
 #define PLAYER_COLOR RGB5(31, 31, 31)
+#define DRAW_DELIVERY_ZONE_DEBUG 0
 
 typedef struct {
     int x;
@@ -43,9 +52,9 @@ typedef struct {
 } Platform;
 
 static const Platform platforms[] = {
-    { 24, 120, 64, 6 },
-    { 104, 92, 72, 6 },
-    { 174, 64, 52, 6 }
+    { 36, 112, 60, 6 },
+    { 100, 88, 52, 6 },
+    { 158, 58, 60, 6 }
 };
 
 typedef struct {
@@ -67,7 +76,7 @@ typedef struct {
 
 #define SHIP_BASE_WIDTH 36
 #define SHIP_BASE_HEIGHT 10
-#define SHIP_BASE_X 10
+#define SHIP_BASE_X 110
 #define SHIP_BASE_Y (FLOOR_TOP_Y - SHIP_BASE_HEIGHT)
 
 #define SHIP_PART_WIDTH 6
@@ -76,10 +85,20 @@ typedef struct {
 #define SHIP_PART_CARRY_OFFSET_X 1
 #define SHIP_PART_CARRY_OFFSET_Y -7
 
+#define SHIP_PART_SLOT0_X (SHIP_BASE_X + 7)
+#define SHIP_PART_SLOT1_X (SHIP_BASE_X + 15)
+#define SHIP_PART_SLOT2_X (SHIP_BASE_X + 23)
+#define SHIP_PART_SLOT_Y (SHIP_BASE_Y - SHIP_PART_HEIGHT + 1)
+
+#define SHIP_DELIVERY_ZONE_X (SHIP_BASE_X - 4)
+#define SHIP_DELIVERY_ZONE_Y (SHIP_BASE_Y - 12)
+#define SHIP_DELIVERY_ZONE_WIDTH (SHIP_BASE_WIDTH + 8)
+#define SHIP_DELIVERY_ZONE_HEIGHT 12
+
 static const ShipPart shipPartDefaults[SHIP_PART_COUNT] = {
-    { 56, 114, SHIP_BASE_X + 7, SHIP_BASE_Y - SHIP_PART_HEIGHT + 1, 0 },
-    { 132, 86, SHIP_BASE_X + 15, SHIP_BASE_Y - SHIP_PART_HEIGHT + 1, 0 },
-    { 200, 58, SHIP_BASE_X + 23, SHIP_BASE_Y - SHIP_PART_HEIGHT + 1, 0 }
+    { SHIP_PART_SLOT0_X, SHIP_PART_SLOT_Y, SHIP_PART_SLOT0_X, SHIP_PART_SLOT_Y, 1 },
+    { 62, 106, SHIP_PART_SLOT1_X, SHIP_PART_SLOT_Y, 0 },
+    { 182, 52, SHIP_PART_SLOT2_X, SHIP_PART_SLOT_Y, 0 }
 };
 
 static void fillScreen(u16 color)
@@ -150,6 +169,12 @@ static void drawFloor(void)
     }
 }
 
+static void drawHudPlaceholder(void)
+{
+    drawRect(0, 0, SCREEN_WIDTH, HUD_HEIGHT, HUD_COLOR);
+    drawRect(0, HUD_HEIGHT - 1, SCREEN_WIDTH, 1, HUD_LINE_COLOR);
+}
+
 static int rectsOverlap(const Rect *a, const Rect *b)
 {
     if (a->x + a->width <= b->x) {
@@ -181,12 +206,147 @@ static void drawShipPart(int x, int y, int delivered)
     drawRect(x, y, SHIP_PART_WIDTH, SHIP_PART_HEIGHT, color);
 }
 
-static void drawShipParts(const ShipPart *parts)
+static void drawDeliveryZone(void)
+{
+#if DRAW_DELIVERY_ZONE_DEBUG
+    drawRect(
+        SHIP_DELIVERY_ZONE_X,
+        SHIP_DELIVERY_ZONE_Y,
+        SHIP_DELIVERY_ZONE_WIDTH,
+        SHIP_DELIVERY_ZONE_HEIGHT,
+        DELIVERY_ZONE_COLOR
+    );
+    drawRect(
+        SHIP_DELIVERY_ZONE_X,
+        SHIP_DELIVERY_ZONE_Y + SHIP_DELIVERY_ZONE_HEIGHT - 1,
+        SHIP_DELIVERY_ZONE_WIDTH,
+        1,
+        DELIVERY_ZONE_LINE_COLOR
+    );
+#endif
+}
+
+static Rect getPlayerRect(int playerPixelX, int playerPixelY)
+{
+    Rect rect;
+
+    rect.x = playerPixelX;
+    rect.y = playerPixelY;
+    rect.width = PLAYER_WIDTH;
+    rect.height = PLAYER_HEIGHT;
+    return rect;
+}
+
+static Rect getShipPartRect(const ShipPart *part)
+{
+    Rect rect;
+
+    rect.x = part->x;
+    rect.y = part->y;
+    rect.width = SHIP_PART_WIDTH;
+    rect.height = SHIP_PART_HEIGHT;
+    return rect;
+}
+
+static int rectIsValid(const Rect *rect)
+{
+    return rect->width > 0 && rect->height > 0;
+}
+
+static void redrawStaticInRect(const Rect *rect, const ShipPart *shipParts, int carriedPartIndex)
+{
+    Rect hudLineRect;
+    Rect floorRect;
+    Rect platformRect;
+    Rect shipBaseRect;
+    Rect partRect;
+    int i;
+
+    if (!rectIsValid(rect)) {
+        return;
+    }
+
+    hudLineRect.x = 0;
+    hudLineRect.y = HUD_HEIGHT - 1;
+    hudLineRect.width = SCREEN_WIDTH;
+    hudLineRect.height = 1;
+    if (rectsOverlap(rect, &hudLineRect)) {
+        drawRect(0, HUD_HEIGHT - 1, SCREEN_WIDTH, 1, HUD_LINE_COLOR);
+    }
+
+    floorRect.x = 0;
+    floorRect.y = FLOOR_TOP_Y;
+    floorRect.width = SCREEN_WIDTH;
+    floorRect.height = FLOOR_HEIGHT;
+    if (rectsOverlap(rect, &floorRect)) {
+        drawFloor();
+    }
+
+    for (i = 0; i < PLATFORM_COUNT; i++) {
+        platformRect.x = platforms[i].x;
+        platformRect.y = platforms[i].y;
+        platformRect.width = platforms[i].width;
+        platformRect.height = platforms[i].height;
+        if (rectsOverlap(rect, &platformRect)) {
+            drawRect(platforms[i].x, platforms[i].y, platforms[i].width, 1, PLATFORM_TOP_COLOR);
+            if (platforms[i].height > 1) {
+                drawRect(
+                    platforms[i].x,
+                    platforms[i].y + 1,
+                    platforms[i].width,
+                    platforms[i].height - 1,
+                    PLATFORM_COLOR
+                );
+            }
+        }
+    }
+
+    shipBaseRect.x = SHIP_BASE_X;
+    shipBaseRect.y = SHIP_BASE_Y;
+    shipBaseRect.width = SHIP_BASE_WIDTH;
+    shipBaseRect.height = SHIP_BASE_HEIGHT;
+    if (rectsOverlap(rect, &shipBaseRect)) {
+        drawShipBase();
+    }
+
+    drawDeliveryZone();
+
+    for (i = 0; i < SHIP_PART_COUNT; i++) {
+        if (i == carriedPartIndex) {
+            continue;
+        }
+        partRect = getShipPartRect(&shipParts[i]);
+        if (rectsOverlap(rect, &partRect)) {
+            drawShipPart(shipParts[i].x, shipParts[i].y, shipParts[i].delivered);
+        }
+    }
+}
+
+static void clearDynamicRect(const Rect *rect, const ShipPart *shipParts, int carriedPartIndex)
+{
+    if (!rectIsValid(rect)) {
+        return;
+    }
+
+    drawRect(rect->x, rect->y, rect->width, rect->height, SKY_COLOR);
+    redrawStaticInRect(rect, shipParts, carriedPartIndex);
+}
+
+static void drawStaticScene(const ShipPart *shipParts, int carriedPartIndex)
 {
     int i;
 
+    fillScreen(SKY_COLOR);
+    drawHudPlaceholder();
+    drawFloor();
+    drawPlatforms();
+    drawShipBase();
+    drawDeliveryZone();
     for (i = 0; i < SHIP_PART_COUNT; i++) {
-        drawShipPart(parts[i].x, parts[i].y, parts[i].delivered);
+        if (i == carriedPartIndex) {
+            continue;
+        }
+        drawShipPart(shipParts[i].x, shipParts[i].y, shipParts[i].delivered);
     }
 }
 
@@ -242,35 +402,32 @@ int main(void)
     int playerVelX;
     int playerVelY;
     int prevPlayerY;
-    int oldPixelX;
-    int oldPixelY;
     int pixelX;
     int pixelY;
+    int oldPixelX;
+    int oldPixelY;
     int carriedPartIndex;
-    int oldCarriedPartIndex;
-    int needsRedraw;
     int i;
-    int oldPartX[SHIP_PART_COUNT];
-    int oldPartY[SHIP_PART_COUNT];
-    int oldPartDelivered[SHIP_PART_COUNT];
+    int changedParts[SHIP_PART_COUNT];
+    int changedPartCount;
     ShipPart shipParts[SHIP_PART_COUNT];
+    ShipPart oldShipParts[SHIP_PART_COUNT];
     Rect playerRect;
-    Rect shipBaseRect;
+    Rect oldPlayerRect;
+    Rect shipDeliveryZoneRect;
     Rect shipPartRect;
+    Rect carriedPartNewRect;
     u16 keys;
 
     const int minX = 0;
     const int maxX = TO_FIX(SCREEN_WIDTH - PLAYER_WIDTH);
-    const int minY = 0;
+    const int minY = TO_FIX(PLAYFIELD_TOP);
     const int floorY = TO_FIX(FLOOR_TOP_Y - PLAYER_HEIGHT);
 
     irqInit();
     irqEnable(IRQ_VBLANK);
 
     REG_DISPCNT = MODE_3 | BG2_ON;
-    fillScreen(SKY_COLOR);
-    drawFloor();
-    drawPlatforms();
 
     playerX = TO_FIX((SCREEN_WIDTH / 2) - (PLAYER_WIDTH / 2));
     playerY = floorY;
@@ -280,13 +437,12 @@ int main(void)
     for (i = 0; i < SHIP_PART_COUNT; i++) {
         shipParts[i] = shipPartDefaults[i];
     }
-    shipBaseRect.x = SHIP_BASE_X;
-    shipBaseRect.y = SHIP_BASE_Y;
-    shipBaseRect.width = SHIP_BASE_WIDTH;
-    shipBaseRect.height = SHIP_BASE_HEIGHT;
+    shipDeliveryZoneRect.x = SHIP_DELIVERY_ZONE_X;
+    shipDeliveryZoneRect.y = SHIP_DELIVERY_ZONE_Y;
+    shipDeliveryZoneRect.width = SHIP_DELIVERY_ZONE_WIDTH;
+    shipDeliveryZoneRect.height = SHIP_DELIVERY_ZONE_HEIGHT;
 
-    drawShipBase();
-    drawShipParts(shipParts);
+    drawStaticScene(shipParts, carriedPartIndex);
     drawRect(FROM_FIX(playerX), FROM_FIX(playerY), PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
 
     while (1) {
@@ -296,12 +452,11 @@ int main(void)
 
         oldPixelX = FROM_FIX(playerX);
         oldPixelY = FROM_FIX(playerY);
-        oldCarriedPartIndex = carriedPartIndex;
+        oldPlayerRect = getPlayerRect(oldPixelX, oldPixelY);
         for (i = 0; i < SHIP_PART_COUNT; i++) {
-            oldPartX[i] = shipParts[i].x;
-            oldPartY[i] = shipParts[i].y;
-            oldPartDelivered[i] = shipParts[i].delivered;
+            oldShipParts[i] = shipParts[i];
         }
+        changedPartCount = 0;
 
         if (keys & KEY_LEFT) {
             playerVelX -= PLAYER_MOVE_ACCEL;
@@ -367,10 +522,7 @@ int main(void)
 
         pixelX = FROM_FIX(playerX);
         pixelY = FROM_FIX(playerY);
-        playerRect.x = pixelX;
-        playerRect.y = pixelY;
-        playerRect.width = PLAYER_WIDTH;
-        playerRect.height = PLAYER_HEIGHT;
+        playerRect = getPlayerRect(pixelX, pixelY);
 
         if (carriedPartIndex < 0) {
             for (i = 0; i < SHIP_PART_COUNT; i++) {
@@ -385,6 +537,7 @@ int main(void)
 
                 if (rectsOverlap(&playerRect, &shipPartRect)) {
                     carriedPartIndex = i;
+                    changedParts[changedPartCount++] = i;
                     break;
                 }
             }
@@ -393,39 +546,36 @@ int main(void)
         if (carriedPartIndex >= 0) {
             shipParts[carriedPartIndex].x = pixelX + SHIP_PART_CARRY_OFFSET_X;
             shipParts[carriedPartIndex].y = pixelY + SHIP_PART_CARRY_OFFSET_Y;
+            if (shipParts[carriedPartIndex].y < PLAYFIELD_TOP) {
+                shipParts[carriedPartIndex].y = PLAYFIELD_TOP;
+            }
+            changedParts[changedPartCount++] = carriedPartIndex;
 
-            if (rectsOverlap(&playerRect, &shipBaseRect)) {
+            if (rectsOverlap(&playerRect, &shipDeliveryZoneRect)) {
                 shipParts[carriedPartIndex].delivered = 1;
                 shipParts[carriedPartIndex].x = shipParts[carriedPartIndex].attachX;
                 shipParts[carriedPartIndex].y = shipParts[carriedPartIndex].attachY;
+                changedParts[changedPartCount++] = carriedPartIndex;
                 carriedPartIndex = -1;
             }
         }
 
-        needsRedraw = 0;
-        if (pixelX != oldPixelX || pixelY != oldPixelY) {
-            needsRedraw = 1;
-        }
-        if (carriedPartIndex != oldCarriedPartIndex) {
-            needsRedraw = 1;
-        }
-        for (i = 0; i < SHIP_PART_COUNT; i++) {
-            if (shipParts[i].x != oldPartX[i] || shipParts[i].y != oldPartY[i] || shipParts[i].delivered != oldPartDelivered[i]) {
-                needsRedraw = 1;
-                break;
-            }
+        clearDynamicRect(&oldPlayerRect, shipParts, carriedPartIndex);
+
+        for (i = 0; i < changedPartCount; i++) {
+            Rect oldPartRect = getShipPartRect(&oldShipParts[changedParts[i]]);
+            clearDynamicRect(&oldPartRect, shipParts, carriedPartIndex);
         }
 
-        if (needsRedraw) {
-            drawRect(oldPixelX, oldPixelY, PLAYER_WIDTH, PLAYER_HEIGHT, SKY_COLOR);
-            for (i = 0; i < SHIP_PART_COUNT; i++) {
-                drawRect(oldPartX[i], oldPartY[i], SHIP_PART_WIDTH, SHIP_PART_HEIGHT, SKY_COLOR);
-            }
-            drawFloor();
-            drawPlatforms();
-            drawShipBase();
-            drawShipParts(shipParts);
-            drawRect(pixelX, pixelY, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
+        if (carriedPartIndex >= 0) {
+            carriedPartNewRect = getShipPartRect(&shipParts[carriedPartIndex]);
+            drawShipPart(
+                carriedPartNewRect.x,
+                carriedPartNewRect.y,
+                shipParts[carriedPartIndex].delivered
+            );
         }
+
+        drawRect(playerRect.x, playerRect.y, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
     }
 }
