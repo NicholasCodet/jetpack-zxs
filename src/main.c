@@ -766,6 +766,18 @@ static void resolvePlatformLanding(int playerX, int previousPlayerY, int *player
     }
 }
 
+static void resolvePlayerHorizontalWrap(int *playerX)
+{
+    const int wrapLeft = -TO_FIX(PLAYER_WIDTH);
+    const int wrapRight = TO_FIX(SCREEN_WIDTH);
+
+    if (*playerX < wrapLeft) {
+        *playerX = wrapRight;
+    } else if (*playerX > wrapRight) {
+        *playerX = wrapLeft;
+    }
+}
+
 int main(void)
 {
     int playerX;
@@ -802,8 +814,6 @@ int main(void)
     Rect fuelRect;
     u16 keys;
 
-    const int minX = 0;
-    const int maxX = TO_FIX(SCREEN_WIDTH - PLAYER_WIDTH);
     const int minY = TO_FIX(PLAYFIELD_TOP);
     const int floorY = TO_FIX(FLOOR_TOP_Y - PLAYER_HEIGHT);
 
@@ -892,15 +902,7 @@ int main(void)
         prevPlayerY = playerY;
         playerX += playerVelX;
         playerY += playerVelY;
-
-        if (playerX < minX) {
-            playerX = minX;
-            playerVelX = 0;
-        }
-        if (playerX > maxX) {
-            playerX = maxX;
-            playerVelX = 0;
-        }
+        resolvePlayerHorizontalWrap(&playerX);
 
         if (playerY < minY) {
             playerY = minY;

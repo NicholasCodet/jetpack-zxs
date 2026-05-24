@@ -12,6 +12,7 @@ Current focus:
 - Validate two-part collection flow with one section pre-placed and drop-to-slot delivery behavior.
 - Expand the fuel loop to 6 deliveries with one active fuel at a time after ship assembly.
 - Add ship-ready and stage-clear placeholder triggers after the fuel objective.
+- Restore Jetpac-style horizontal wrap for player movement.
 
 Next milestone: Milestone 4 — Enemies
 
@@ -40,7 +41,7 @@ Success criteria:
 Goal: create the smallest playable movement prototype.
 
 Status: Prototype implemented on 2026-04-26
-Progress update: horizontal acceleration and friction refinement added on 2026-04-26.
+Progress update: horizontal acceleration and friction refinement added on 2026-04-26; horizontal wrap behavior added on 2026-05-24.
 
 Tasks:
 
@@ -48,7 +49,7 @@ Tasks:
 - Implement horizontal movement.
 - Implement gravity.
 - Implement jetpack thrust.
-- Clamp the player to the screen.
+- Clamp the player vertically and wrap horizontally.
 - Add simple floor collision.
 - Expose movement constants for tuning.
 
@@ -58,7 +59,7 @@ Success criteria:
 - The player can fly using the A button.
 - The player falls when A is released.
 - The player lands on the floor.
-- The player cannot leave the screen.
+- The player wraps across left/right screen edges and remains inside vertical playfield bounds.
 
 ## Milestone 2 — Platforms
 
