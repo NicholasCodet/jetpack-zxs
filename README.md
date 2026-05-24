@@ -13,8 +13,8 @@ Current milestone: Milestone 3 — Rocket parts (in progress)
 Current focus:
 
 - Keep the base GBA build setup stable.
-- Add and tune the first ship-part pickup and delivery loop.
-- Current ROM behavior: placeholder player with movement/platform collisions plus a single ship part that can be picked up, carried, and delivered to a ship base.
+- Add and tune the ship assembly pickup and delivery loop.
+- Current ROM behavior: placeholder player with movement/platform collisions plus three ship parts that are picked up one-by-one and delivered to a ship base.
 
 ## Requirements
 

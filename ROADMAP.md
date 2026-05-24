@@ -8,7 +8,7 @@ Status: In progress
 
 Current focus:
 
-- Tune the first ship-part pickup and delivery loop.
+- Tune the three-part ship pickup and delivery loop.
 - Validate item carry/delivery behavior in emulator.
 
 Next milestone: Milestone 4 — Enemies
@@ -84,12 +84,12 @@ Success criteria:
 Goal: implement the main objective loop.
 
 Status: In progress
-Progress update: first placeholder ship base and one-part pickup/carry/delivery loop added on 2026-05-24.
+Progress update: placeholder ship base and three-part pickup/carry/delivery loop added on 2026-05-24.
 
 Tasks:
 
 - Add a rocket base.
-- Add one collectible rocket part.
+- Add collectible rocket parts.
 - Allow the player to pick up the part.
 - Allow the player to carry the part.
 - Allow the player to deposit the part on the rocket.
