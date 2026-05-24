@@ -9,7 +9,7 @@ Status: In progress
 Current focus:
 
 - Tune HUD/playfield composition and ship delivery-zone behavior.
-- Validate two-part collection flow with one section pre-placed.
+- Validate two-part collection flow with one section pre-placed and drop-to-slot delivery behavior.
 
 Next milestone: Milestone 4 — Enemies
 
@@ -84,7 +84,7 @@ Success criteria:
 Goal: implement the main objective loop.
 
 Status: In progress
-Progress update: dirty-rectangle redraw retained, readable placeholder HUD text added, and Jetpac-like platform/ship composition refined with one pre-placed section plus two collectable parts delivered one-by-one on 2026-05-24.
+Progress update: dirty-rectangle redraw retained, readable placeholder HUD text added, and Jetpac-like platform/ship composition refined with one pre-placed section plus two collectable parts delivered in enforced order (body then nose) using release-and-drop-to-slot behavior on 2026-05-24.
 
 Tasks:
 

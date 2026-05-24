@@ -14,7 +14,7 @@ Current focus:
 
 - Keep the base GBA build setup stable.
 - Refine fixed-screen composition with HUD and delivery-zone layout.
-- Current ROM behavior: dirty-rectangle Mode 3 redraw with readable placeholder HUD text (SCORE/LIVES/HI), Jetpac-like fixed-screen composition, and a three-section ship where the first section starts placed and the remaining two parts are delivered in order (body then nose) via a ship delivery zone.
+- Current ROM behavior: dirty-rectangle Mode 3 redraw with readable placeholder HUD text (SCORE/LIVES/HI), Jetpac-like fixed-screen composition, and a three-section ship where the first section starts placed and the remaining two parts are released over the ship delivery zone, drop into their slots automatically, and must be delivered in order (body then nose).
 
 ## Requirements
 
