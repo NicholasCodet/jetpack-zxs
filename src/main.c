@@ -29,6 +29,10 @@
 #define FLOOR_TOP_COLOR RGB5(12, 12, 12)
 #define PLATFORM_COLOR RGB5(8, 15, 10)
 #define PLATFORM_TOP_COLOR RGB5(16, 24, 19)
+#define SHIP_BASE_COLOR RGB5(14, 10, 8)
+#define SHIP_BASE_TOP_COLOR RGB5(22, 18, 14)
+#define SHIP_PART_COLOR RGB5(24, 22, 8)
+#define SHIP_PART_DELIVERED_COLOR RGB5(30, 26, 10)
 #define PLAYER_COLOR RGB5(31, 31, 31)
 
 typedef struct {
@@ -44,7 +48,28 @@ static const Platform platforms[] = {
     { 174, 64, 52, 6 }
 };
 
+typedef struct {
+    int x;
+    int y;
+    int width;
+    int height;
+} Rect;
+
 #define PLATFORM_COUNT (sizeof(platforms) / sizeof(platforms[0]))
+
+#define SHIP_BASE_WIDTH 36
+#define SHIP_BASE_HEIGHT 10
+#define SHIP_BASE_X 10
+#define SHIP_BASE_Y (FLOOR_TOP_Y - SHIP_BASE_HEIGHT)
+
+#define SHIP_PART_WIDTH 6
+#define SHIP_PART_HEIGHT 6
+#define SHIP_PART_START_X 56
+#define SHIP_PART_START_Y 114
+#define SHIP_PART_CARRY_OFFSET_X 1
+#define SHIP_PART_CARRY_OFFSET_Y -7
+#define SHIP_PART_ATTACH_X (SHIP_BASE_X + 15)
+#define SHIP_PART_ATTACH_Y (SHIP_BASE_Y - SHIP_PART_HEIGHT + 1)
 
 static void fillScreen(u16 color)
 {
@@ -114,6 +139,37 @@ static void drawFloor(void)
     }
 }
 
+static int rectsOverlap(const Rect *a, const Rect *b)
+{
+    if (a->x + a->width <= b->x) {
+        return 0;
+    }
+    if (b->x + b->width <= a->x) {
+        return 0;
+    }
+    if (a->y + a->height <= b->y) {
+        return 0;
+    }
+    if (b->y + b->height <= a->y) {
+        return 0;
+    }
+    return 1;
+}
+
+static void drawShipBase(void)
+{
+    drawRect(SHIP_BASE_X, SHIP_BASE_Y, SHIP_BASE_WIDTH, 1, SHIP_BASE_TOP_COLOR);
+    if (SHIP_BASE_HEIGHT > 1) {
+        drawRect(SHIP_BASE_X, SHIP_BASE_Y + 1, SHIP_BASE_WIDTH, SHIP_BASE_HEIGHT - 1, SHIP_BASE_COLOR);
+    }
+}
+
+static void drawShipPart(int x, int y, int delivered)
+{
+    u16 color = delivered ? SHIP_PART_DELIVERED_COLOR : SHIP_PART_COLOR;
+    drawRect(x, y, SHIP_PART_WIDTH, SHIP_PART_HEIGHT, color);
+}
+
 static void resolvePlatformLanding(int playerX, int previousPlayerY, int *playerY, int *playerVelY)
 {
     int playerLeft;
@@ -170,6 +226,18 @@ int main(void)
     int oldPixelY;
     int pixelX;
     int pixelY;
+    int shipPartX;
+    int shipPartY;
+    int oldShipPartX;
+    int oldShipPartY;
+    int shipPartCarried;
+    int shipPartDelivered;
+    int oldShipPartCarried;
+    int oldShipPartDelivered;
+    int needsRedraw;
+    Rect playerRect;
+    Rect shipBaseRect;
+    Rect shipPartRect;
     u16 keys;
 
     const int minX = 0;
@@ -189,7 +257,17 @@ int main(void)
     playerY = floorY;
     playerVelX = 0;
     playerVelY = 0;
+    shipPartX = SHIP_PART_START_X;
+    shipPartY = SHIP_PART_START_Y;
+    shipPartCarried = 0;
+    shipPartDelivered = 0;
+    shipBaseRect.x = SHIP_BASE_X;
+    shipBaseRect.y = SHIP_BASE_Y;
+    shipBaseRect.width = SHIP_BASE_WIDTH;
+    shipBaseRect.height = SHIP_BASE_HEIGHT;
 
+    drawShipBase();
+    drawShipPart(shipPartX, shipPartY, 0);
     drawRect(FROM_FIX(playerX), FROM_FIX(playerY), PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
 
     while (1) {
@@ -199,6 +277,10 @@ int main(void)
 
         oldPixelX = FROM_FIX(playerX);
         oldPixelY = FROM_FIX(playerY);
+        oldShipPartX = shipPartX;
+        oldShipPartY = shipPartY;
+        oldShipPartCarried = shipPartCarried;
+        oldShipPartDelivered = shipPartDelivered;
 
         if (keys & KEY_LEFT) {
             playerVelX -= PLAYER_MOVE_ACCEL;
@@ -264,11 +346,52 @@ int main(void)
 
         pixelX = FROM_FIX(playerX);
         pixelY = FROM_FIX(playerY);
+        playerRect.x = pixelX;
+        playerRect.y = pixelY;
+        playerRect.width = PLAYER_WIDTH;
+        playerRect.height = PLAYER_HEIGHT;
 
+        if (!shipPartCarried && !shipPartDelivered) {
+            shipPartRect.x = shipPartX;
+            shipPartRect.y = shipPartY;
+            shipPartRect.width = SHIP_PART_WIDTH;
+            shipPartRect.height = SHIP_PART_HEIGHT;
+
+            if (rectsOverlap(&playerRect, &shipPartRect)) {
+                shipPartCarried = 1;
+            }
+        }
+
+        if (shipPartCarried) {
+            shipPartX = pixelX + SHIP_PART_CARRY_OFFSET_X;
+            shipPartY = pixelY + SHIP_PART_CARRY_OFFSET_Y;
+
+            if (rectsOverlap(&playerRect, &shipBaseRect)) {
+                shipPartCarried = 0;
+                shipPartDelivered = 1;
+                shipPartX = SHIP_PART_ATTACH_X;
+                shipPartY = SHIP_PART_ATTACH_Y;
+            }
+        }
+
+        needsRedraw = 0;
         if (pixelX != oldPixelX || pixelY != oldPixelY) {
+            needsRedraw = 1;
+        }
+        if (shipPartX != oldShipPartX || shipPartY != oldShipPartY) {
+            needsRedraw = 1;
+        }
+        if (shipPartCarried != oldShipPartCarried || shipPartDelivered != oldShipPartDelivered) {
+            needsRedraw = 1;
+        }
+
+        if (needsRedraw) {
             drawRect(oldPixelX, oldPixelY, PLAYER_WIDTH, PLAYER_HEIGHT, SKY_COLOR);
+            drawRect(oldShipPartX, oldShipPartY, SHIP_PART_WIDTH, SHIP_PART_HEIGHT, SKY_COLOR);
             drawFloor();
             drawPlatforms();
+            drawShipBase();
+            drawShipPart(shipPartX, shipPartY, shipPartDelivered);
             drawRect(pixelX, pixelY, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
         }
     }

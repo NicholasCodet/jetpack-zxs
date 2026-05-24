@@ -2,16 +2,16 @@
 
 ## Current status
 
-Current milestone: Milestone 2 — Platforms
+Current milestone: Milestone 3 — Rocket parts
 
-Status: Completed on 2026-04-26
+Status: In progress
 
 Current focus:
 
-- Validate Milestone 2 in emulator and capture tuning notes.
-- Start Milestone 3 planning.
+- Tune the first ship-part pickup and delivery loop.
+- Validate item carry/delivery behavior in emulator.
 
-Next milestone: Milestone 3 — Rocket parts
+Next milestone: Milestone 4 — Enemies
 
 ## Milestone 0 — Project setup
 
@@ -82,6 +82,9 @@ Success criteria:
 ## Milestone 3 — Rocket parts
 
 Goal: implement the main objective loop.
+
+Status: In progress
+Progress update: first placeholder ship base and one-part pickup/carry/delivery loop added on 2026-05-24.
 
 Tasks:
 

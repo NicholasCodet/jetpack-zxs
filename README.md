@@ -8,13 +8,13 @@ The goal is not to create a pixel-perfect clone, but a faithful GBA reinterpreta
 
 ## Project status
 
-Current milestone: Milestone 2 — Platforms (completed)
+Current milestone: Milestone 3 — Rocket parts (in progress)
 
 Current focus:
 
 - Keep the base GBA build setup stable.
-- Start Milestone 3 planning.
-- Current ROM behavior: placeholder player with acceleration-based horizontal movement, gravity, jetpack thrust, floor collision, and robust one-way platform landing.
+- Add and tune the first ship-part pickup and delivery loop.
+- Current ROM behavior: placeholder player with movement/platform collisions plus a single ship part that can be picked up, carried, and delivered to a ship base.
 
 ## Requirements
 
