@@ -128,7 +128,7 @@ Success criteria:
 Goal: let the player defend themselves.
 
 Status: In progress
-Progress update: minimal single-projectile B-button prototype added on 2026-05-24 (no enemy interactions or scoring yet).
+Progress update: minimal single-projectile B-button prototype added on 2026-05-24 (no enemy interactions or scoring yet). Projectile feel refined toward a fast horizontal beam-style shot on 2026-05-24.
 
 Tasks:
 

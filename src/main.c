@@ -48,7 +48,8 @@
 #define PLAYER_COLOR RGB5(31, 31, 31)
 #define READY_TEXT_COLOR RGB5(12, 24, 12)
 #define CLEAR_TEXT_COLOR RGB5(31, 20, 8)
-#define PROJECTILE_COLOR RGB5(31, 31, 10)
+#define PROJECTILE_COLOR RGB5(26, 24, 8)
+#define PROJECTILE_TIP_COLOR RGB5(31, 31, 18)
 #define DRAW_DELIVERY_ZONE_DEBUG 0
 #define DRAW_LAUNCH_ZONE_DEBUG 0
 
@@ -123,9 +124,9 @@ typedef struct {
 #define SHIP_PART_CARRY_OFFSET_Y -7
 #define SHIP_PART_DROP_SPEED 1
 
-#define PROJECTILE_WIDTH 3
+#define PROJECTILE_WIDTH 18
 #define PROJECTILE_HEIGHT 2
-#define PROJECTILE_SPEED 3
+#define PROJECTILE_SPEED 7
 
 #define SHIP_PART_SLOT0_X (SHIP_BASE_X + 7)
 #define SHIP_PART_SLOT0_Y (SHIP_BODY_Y + 14)
@@ -370,9 +371,14 @@ static void drawFuel(const Fuel *fuel)
     drawRect(fuel->x, fuel->y, FUEL_WIDTH, FUEL_HEIGHT, color);
 }
 
-static void drawProjectile(int x, int y)
+static void drawProjectile(int x, int y, int velX)
 {
     drawRect(x, y, PROJECTILE_WIDTH, PROJECTILE_HEIGHT, PROJECTILE_COLOR);
+    if (velX > 0) {
+        drawRect(x + PROJECTILE_WIDTH - 2, y, 2, PROJECTILE_HEIGHT, PROJECTILE_TIP_COLOR);
+    } else {
+        drawRect(x, y, 2, PROJECTILE_HEIGHT, PROJECTILE_TIP_COLOR);
+    }
 }
 
 static void drawDeliveryZone(void)
@@ -1168,7 +1174,7 @@ int main(void)
         }
         if (projectileActive) {
             projectileRect = getProjectileRect(projectileX, projectileY);
-            drawProjectile(projectileRect.x, projectileRect.y);
+            drawProjectile(projectileRect.x, projectileRect.y, projectileVelX);
         }
 
         drawRect(playerRect.x, playerRect.y, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
