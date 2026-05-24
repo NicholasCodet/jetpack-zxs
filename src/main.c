@@ -5,7 +5,7 @@
 
 #define SCREEN_WIDTH 240
 #define SCREEN_HEIGHT 160
-#define HUD_HEIGHT 16
+#define HUD_HEIGHT 20
 #define PLAYFIELD_TOP HUD_HEIGHT
 #define PLAYFIELD_BOTTOM (SCREEN_HEIGHT - 1)
 
@@ -32,6 +32,7 @@
 #define FLOOR_TOP_COLOR RGB5(11, 11, 11)
 #define HUD_COLOR RGB5(0, 0, 0)
 #define HUD_LINE_COLOR RGB5(13, 13, 13)
+#define HUD_TEXT_COLOR RGB5(20, 20, 20)
 #define PLATFORM_COLOR RGB5(8, 15, 10)
 #define PLATFORM_TOP_COLOR RGB5(16, 24, 19)
 #define SHIP_BASE_COLOR RGB5(14, 10, 8)
@@ -52,9 +53,9 @@ typedef struct {
 } Platform;
 
 static const Platform platforms[] = {
-    { 36, 112, 60, 6 },
-    { 100, 88, 52, 6 },
-    { 158, 58, 60, 6 }
+    { 34, 112, 52, 4 },
+    { 102, 88, 48, 4 },
+    { 162, 58, 52, 4 }
 };
 
 typedef struct {
@@ -78,6 +79,7 @@ typedef struct {
 #define SHIP_BASE_HEIGHT 10
 #define SHIP_BASE_X 110
 #define SHIP_BASE_Y (FLOOR_TOP_Y - SHIP_BASE_HEIGHT)
+#define PLAYER_SPAWN_X 28
 
 #define SHIP_PART_WIDTH 6
 #define SHIP_PART_HEIGHT 6
@@ -97,8 +99,8 @@ typedef struct {
 
 static const ShipPart shipPartDefaults[SHIP_PART_COUNT] = {
     { SHIP_PART_SLOT0_X, SHIP_PART_SLOT_Y, SHIP_PART_SLOT0_X, SHIP_PART_SLOT_Y, 1 },
-    { 62, 106, SHIP_PART_SLOT1_X, SHIP_PART_SLOT_Y, 0 },
-    { 182, 52, SHIP_PART_SLOT2_X, SHIP_PART_SLOT_Y, 0 }
+    { 57, 106, SHIP_PART_SLOT1_X, SHIP_PART_SLOT_Y, 0 },
+    { 185, 52, SHIP_PART_SLOT2_X, SHIP_PART_SLOT_Y, 0 }
 };
 
 static void fillScreen(u16 color)
@@ -143,6 +145,68 @@ static void drawRect(int x, int y, int width, int height, u16 color)
     }
 }
 
+static void getFont3x5Rows(char c, unsigned char rows[5])
+{
+    int i;
+
+    for (i = 0; i < 5; i++) {
+        rows[i] = 0;
+    }
+
+    switch (c) {
+        case '0': rows[0] = 0x7; rows[1] = 0x5; rows[2] = 0x5; rows[3] = 0x5; rows[4] = 0x7; break;
+        case '1': rows[0] = 0x2; rows[1] = 0x6; rows[2] = 0x2; rows[3] = 0x2; rows[4] = 0x7; break;
+        case '2': rows[0] = 0x7; rows[1] = 0x1; rows[2] = 0x7; rows[3] = 0x4; rows[4] = 0x7; break;
+        case '3': rows[0] = 0x7; rows[1] = 0x1; rows[2] = 0x7; rows[3] = 0x1; rows[4] = 0x7; break;
+        case '4': rows[0] = 0x5; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x1; rows[4] = 0x1; break;
+        case '5': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x7; rows[3] = 0x1; rows[4] = 0x7; break;
+        case '6': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x7; rows[3] = 0x5; rows[4] = 0x7; break;
+        case '7': rows[0] = 0x7; rows[1] = 0x1; rows[2] = 0x1; rows[3] = 0x1; rows[4] = 0x1; break;
+        case '8': rows[0] = 0x7; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x5; rows[4] = 0x7; break;
+        case '9': rows[0] = 0x7; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x1; rows[4] = 0x7; break;
+        case 'C': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x4; rows[3] = 0x4; rows[4] = 0x7; break;
+        case 'E': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x7; rows[3] = 0x4; rows[4] = 0x7; break;
+        case 'H': rows[0] = 0x5; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x5; rows[4] = 0x5; break;
+        case 'I': rows[0] = 0x7; rows[1] = 0x2; rows[2] = 0x2; rows[3] = 0x2; rows[4] = 0x7; break;
+        case 'L': rows[0] = 0x4; rows[1] = 0x4; rows[2] = 0x4; rows[3] = 0x4; rows[4] = 0x7; break;
+        case 'O': rows[0] = 0x7; rows[1] = 0x5; rows[2] = 0x5; rows[3] = 0x5; rows[4] = 0x7; break;
+        case 'R': rows[0] = 0x7; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x5; rows[4] = 0x5; break;
+        case 'S': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x7; rows[3] = 0x1; rows[4] = 0x7; break;
+        case 'V': rows[0] = 0x5; rows[1] = 0x5; rows[2] = 0x5; rows[3] = 0x5; rows[4] = 0x2; break;
+        default: break;
+    }
+}
+
+static void drawChar3x5(int x, int y, char c, u16 color)
+{
+    unsigned char rows[5];
+    int row;
+    int col;
+
+    getFont3x5Rows(c, rows);
+
+    for (row = 0; row < 5; row++) {
+        for (col = 0; col < 3; col++) {
+            if (rows[row] & (1 << (2 - col))) {
+                drawRect(x + col, y + row, 1, 1, color);
+            }
+        }
+    }
+}
+
+static void drawText3x5(int x, int y, const char *text, u16 color)
+{
+    int cursorX = x;
+
+    while (*text != '\0') {
+        if (*text != ' ') {
+            drawChar3x5(cursorX, y, *text, color);
+        }
+        cursorX += 4;
+        text++;
+    }
+}
+
 static void drawPlatforms(void)
 {
     unsigned int i;
@@ -172,6 +236,12 @@ static void drawFloor(void)
 static void drawHudPlaceholder(void)
 {
     drawRect(0, 0, SCREEN_WIDTH, HUD_HEIGHT, HUD_COLOR);
+    drawText3x5(8, 3, "SCORE", HUD_TEXT_COLOR);
+    drawText3x5(97, 3, "LIVES", HUD_TEXT_COLOR);
+    drawText3x5(196, 3, "HI", HUD_TEXT_COLOR);
+    drawText3x5(8, 11, "000000", HUD_TEXT_COLOR);
+    drawText3x5(105, 11, "4", HUD_TEXT_COLOR);
+    drawText3x5(184, 11, "000000", HUD_TEXT_COLOR);
     drawRect(0, HUD_HEIGHT - 1, SCREEN_WIDTH, 1, HUD_LINE_COLOR);
 }
 
@@ -255,7 +325,7 @@ static int rectIsValid(const Rect *rect)
 
 static void redrawStaticInRect(const Rect *rect, const ShipPart *shipParts, int carriedPartIndex)
 {
-    Rect hudLineRect;
+    Rect hudRect;
     Rect floorRect;
     Rect platformRect;
     Rect shipBaseRect;
@@ -266,12 +336,12 @@ static void redrawStaticInRect(const Rect *rect, const ShipPart *shipParts, int 
         return;
     }
 
-    hudLineRect.x = 0;
-    hudLineRect.y = HUD_HEIGHT - 1;
-    hudLineRect.width = SCREEN_WIDTH;
-    hudLineRect.height = 1;
-    if (rectsOverlap(rect, &hudLineRect)) {
-        drawRect(0, HUD_HEIGHT - 1, SCREEN_WIDTH, 1, HUD_LINE_COLOR);
+    hudRect.x = 0;
+    hudRect.y = 0;
+    hudRect.width = SCREEN_WIDTH;
+    hudRect.height = HUD_HEIGHT;
+    if (rectsOverlap(rect, &hudRect)) {
+        drawHudPlaceholder();
     }
 
     floorRect.x = 0;
@@ -429,7 +499,7 @@ int main(void)
 
     REG_DISPCNT = MODE_3 | BG2_ON;
 
-    playerX = TO_FIX((SCREEN_WIDTH / 2) - (PLAYER_WIDTH / 2));
+    playerX = TO_FIX(PLAYER_SPAWN_X);
     playerY = floorY;
     playerVelX = 0;
     playerVelY = 0;

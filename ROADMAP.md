@@ -84,7 +84,7 @@ Success criteria:
 Goal: implement the main objective loop.
 
 Status: In progress
-Progress update: HUD/playfield composition refined with dirty-rectangle redraw stability fix, ship near lower center, dedicated delivery zone, one pre-placed section, and two collectable parts delivered one-by-one on 2026-05-24.
+Progress update: dirty-rectangle redraw retained, readable placeholder HUD text added, and Jetpac-like platform/ship composition refined with one pre-placed section plus two collectable parts delivered one-by-one on 2026-05-24.
 
 Tasks:
 
