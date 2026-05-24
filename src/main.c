@@ -46,7 +46,10 @@
 #define DELIVERY_ZONE_COLOR RGB5(4, 4, 4)
 #define DELIVERY_ZONE_LINE_COLOR RGB5(8, 8, 8)
 #define PLAYER_COLOR RGB5(31, 31, 31)
+#define READY_TEXT_COLOR RGB5(12, 24, 12)
+#define CLEAR_TEXT_COLOR RGB5(31, 20, 8)
 #define DRAW_DELIVERY_ZONE_DEBUG 0
+#define DRAW_LAUNCH_ZONE_DEBUG 0
 
 typedef struct {
     int x;
@@ -130,6 +133,10 @@ typedef struct {
 #define SHIP_DELIVERY_COLUMN_X ((SHIP_BODY_X + (SHIP_BODY_WIDTH / 2)) - (SHIP_DELIVERY_COLUMN_WIDTH / 2))
 #define SHIP_DELIVERY_COLUMN_Y PLAYFIELD_TOP
 #define SHIP_DELIVERY_COLUMN_HEIGHT (FLOOR_TOP_Y - PLAYFIELD_TOP)
+#define SHIP_LAUNCH_ZONE_X (SHIP_BASE_X - 4)
+#define SHIP_LAUNCH_ZONE_Y (SHIP_NOSE_Y - 2)
+#define SHIP_LAUNCH_ZONE_WIDTH (SHIP_BASE_WIDTH + 8)
+#define SHIP_LAUNCH_ZONE_HEIGHT (SHIP_BOUNDS_HEIGHT + 2)
 
 #define FUEL_WIDTH 6
 #define FUEL_HEIGHT 6
@@ -159,6 +166,11 @@ static const Fuel fuelDefault = {
 };
 
 static const int fuelSpawnXs[FUEL_REQUIRED_COUNT] = { 36, 118, 192, 72, 170, 108 };
+
+#define READY_TEXT_X 170
+#define READY_TEXT_Y 26
+#define CLEAR_TEXT_X 104
+#define CLEAR_TEXT_Y 72
 
 static void fillScreen(u16 color)
 {
@@ -221,7 +233,9 @@ static void getFont3x5Rows(char c, unsigned char rows[5])
         case '7': rows[0] = 0x7; rows[1] = 0x1; rows[2] = 0x1; rows[3] = 0x1; rows[4] = 0x1; break;
         case '8': rows[0] = 0x7; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x5; rows[4] = 0x7; break;
         case '9': rows[0] = 0x7; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x1; rows[4] = 0x7; break;
+        case 'A': rows[0] = 0x2; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x5; rows[4] = 0x5; break;
         case 'C': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x4; rows[3] = 0x4; rows[4] = 0x7; break;
+        case 'D': rows[0] = 0x6; rows[1] = 0x5; rows[2] = 0x5; rows[3] = 0x5; rows[4] = 0x6; break;
         case 'E': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x7; rows[3] = 0x4; rows[4] = 0x7; break;
         case 'H': rows[0] = 0x5; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x5; rows[4] = 0x5; break;
         case 'I': rows[0] = 0x7; rows[1] = 0x2; rows[2] = 0x2; rows[3] = 0x2; rows[4] = 0x7; break;
@@ -230,6 +244,7 @@ static void getFont3x5Rows(char c, unsigned char rows[5])
         case 'R': rows[0] = 0x7; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x5; rows[4] = 0x5; break;
         case 'S': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x7; rows[3] = 0x1; rows[4] = 0x7; break;
         case 'V': rows[0] = 0x5; rows[1] = 0x5; rows[2] = 0x5; rows[3] = 0x5; rows[4] = 0x2; break;
+        case 'Y': rows[0] = 0x5; rows[1] = 0x5; rows[2] = 0x2; rows[3] = 0x2; rows[4] = 0x2; break;
         default: break;
     }
 }
@@ -370,6 +385,36 @@ static void drawDeliveryZone(void)
 #endif
 }
 
+static void drawLaunchZone(void)
+{
+#if DRAW_LAUNCH_ZONE_DEBUG
+    drawRect(
+        SHIP_LAUNCH_ZONE_X,
+        SHIP_LAUNCH_ZONE_Y,
+        SHIP_LAUNCH_ZONE_WIDTH,
+        SHIP_LAUNCH_ZONE_HEIGHT,
+        DELIVERY_ZONE_COLOR
+    );
+    drawRect(
+        SHIP_LAUNCH_ZONE_X,
+        SHIP_LAUNCH_ZONE_Y + SHIP_LAUNCH_ZONE_HEIGHT - 1,
+        SHIP_LAUNCH_ZONE_WIDTH,
+        1,
+        DELIVERY_ZONE_LINE_COLOR
+    );
+#endif
+}
+
+static void drawObjectiveIndicators(int shipReady, int stageClear)
+{
+    if (shipReady && !stageClear) {
+        drawText3x5(READY_TEXT_X, READY_TEXT_Y, "READY", READY_TEXT_COLOR);
+    }
+    if (stageClear) {
+        drawText3x5(CLEAR_TEXT_X, CLEAR_TEXT_Y, "CLEAR", CLEAR_TEXT_COLOR);
+    }
+}
+
 static Rect getPlayerRect(int playerPixelX, int playerPixelY)
 {
     Rect rect;
@@ -427,7 +472,9 @@ static void redrawStaticInRect(
     const ShipPart *shipParts,
     const Fuel *fuel,
     int carriedPartIndex,
-    int droppingPartIndex
+    int droppingPartIndex,
+    int shipReady,
+    int stageClear
 )
 {
     Rect hudRect;
@@ -485,6 +532,8 @@ static void redrawStaticInRect(
     }
 
     drawDeliveryZone();
+    drawLaunchZone();
+    drawObjectiveIndicators(shipReady, stageClear);
 
     for (i = 0; i < SHIP_PART_COUNT; i++) {
         if (i == carriedPartIndex || i == droppingPartIndex) {
@@ -509,7 +558,9 @@ static void clearDynamicRect(
     const ShipPart *shipParts,
     const Fuel *fuel,
     int carriedPartIndex,
-    int droppingPartIndex
+    int droppingPartIndex,
+    int shipReady,
+    int stageClear
 )
 {
     if (!rectIsValid(rect)) {
@@ -517,14 +568,24 @@ static void clearDynamicRect(
     }
 
     drawRect(rect->x, rect->y, rect->width, rect->height, SKY_COLOR);
-    redrawStaticInRect(rect, shipParts, fuel, carriedPartIndex, droppingPartIndex);
+    redrawStaticInRect(
+        rect,
+        shipParts,
+        fuel,
+        carriedPartIndex,
+        droppingPartIndex,
+        shipReady,
+        stageClear
+    );
 }
 
 static void drawStaticScene(
     const ShipPart *shipParts,
     const Fuel *fuel,
     int carriedPartIndex,
-    int droppingPartIndex
+    int droppingPartIndex,
+    int shipReady,
+    int stageClear
 )
 {
     int i;
@@ -535,6 +596,8 @@ static void drawStaticScene(
     drawPlatforms();
     drawShipBase();
     drawDeliveryZone();
+    drawLaunchZone();
+    drawObjectiveIndicators(shipReady, stageClear);
     for (i = 0; i < SHIP_PART_COUNT; i++) {
         if (i == carriedPartIndex || i == droppingPartIndex) {
             continue;
@@ -562,6 +625,15 @@ static int canDeliverFuel(const ShipPart *shipParts)
 static int isFuelObjectiveComplete(int deliveredFuelCount)
 {
     return deliveredFuelCount >= FUEL_REQUIRED_COUNT;
+}
+
+static int isShipReady(const ShipPart *shipParts, int deliveredFuelCount)
+{
+    return (
+        shipParts[SHIP_PART_INDEX_BODY].delivered &&
+        shipParts[SHIP_PART_INDEX_NOSE].delivered &&
+        deliveredFuelCount >= FUEL_REQUIRED_COUNT
+    );
 }
 
 static int isShipAssembled(const ShipPart *shipParts)
@@ -710,6 +782,8 @@ int main(void)
     int deliveredFuelCount;
     int fuelSpawnIndex;
     int fuelObjectiveComplete;
+    int shipReady;
+    int stageClear;
     int shipAssembled;
     int i;
     int changedParts[SHIP_PART_COUNT];
@@ -722,6 +796,7 @@ int main(void)
     Rect playerRect;
     Rect oldPlayerRect;
     Rect shipDeliveryZoneRect;
+    Rect shipLaunchZoneRect;
     Rect shipPartRect;
     Rect carriedPartRect;
     Rect fuelRect;
@@ -746,6 +821,8 @@ int main(void)
     deliveredFuelCount = 0;
     fuelSpawnIndex = 0;
     fuelObjectiveComplete = 0;
+    shipReady = 0;
+    stageClear = 0;
     for (i = 0; i < SHIP_PART_COUNT; i++) {
         shipParts[i] = shipPartDefaults[i];
     }
@@ -754,8 +831,12 @@ int main(void)
     shipDeliveryZoneRect.y = SHIP_DELIVERY_COLUMN_Y;
     shipDeliveryZoneRect.width = SHIP_DELIVERY_COLUMN_WIDTH;
     shipDeliveryZoneRect.height = SHIP_DELIVERY_COLUMN_HEIGHT;
+    shipLaunchZoneRect.x = SHIP_LAUNCH_ZONE_X;
+    shipLaunchZoneRect.y = SHIP_LAUNCH_ZONE_Y;
+    shipLaunchZoneRect.width = SHIP_LAUNCH_ZONE_WIDTH;
+    shipLaunchZoneRect.height = SHIP_LAUNCH_ZONE_HEIGHT;
 
-    drawStaticScene(shipParts, &fuel, carriedPartIndex, droppingPartIndex);
+    drawStaticScene(shipParts, &fuel, carriedPartIndex, droppingPartIndex, shipReady, stageClear);
     drawRect(FROM_FIX(playerX), FROM_FIX(playerY), PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
 
     while (1) {
@@ -839,7 +920,7 @@ int main(void)
         pixelY = FROM_FIX(playerY);
         playerRect = getPlayerRect(pixelX, pixelY);
 
-        if (carriedPartIndex < 0 && droppingPartIndex < 0 && fuel.state != FUEL_CARRIED) {
+        if (!stageClear && carriedPartIndex < 0 && droppingPartIndex < 0 && fuel.state != FUEL_CARRIED) {
             for (i = 0; i < SHIP_PART_COUNT; i++) {
                 if (shipParts[i].delivered || shipParts[i].dropping) {
                     continue;
@@ -858,115 +939,147 @@ int main(void)
             }
         }
 
-        shipAssembled = isShipAssembled(shipParts);
-        if (
-            fuel.state == FUEL_INACTIVE &&
-            shipAssembled &&
-            !fuelObjectiveComplete &&
-            fuelSpawnIndex < FUEL_REQUIRED_COUNT
-        ) {
-            spawnNextFuel(&fuel, fuelSpawnIndex);
-            fuelChanged = 1;
-        }
-
-        if (fuel.state == FUEL_FALLING_FROM_SKY) {
-            updateFuelFallingFromSky(&fuel);
-            fuelChanged = 1;
-        }
-
-        if (fuel.state == FUEL_AVAILABLE && carriedPartIndex < 0) {
-            fuelRect = getFuelRect(&fuel);
-            if (rectsOverlap(&playerRect, &fuelRect)) {
-                fuel.state = FUEL_CARRIED;
+        if (!stageClear) {
+            shipAssembled = isShipAssembled(shipParts);
+            if (
+                fuel.state == FUEL_INACTIVE &&
+                shipAssembled &&
+                !fuelObjectiveComplete &&
+                fuelSpawnIndex < FUEL_REQUIRED_COUNT
+            ) {
+                spawnNextFuel(&fuel, fuelSpawnIndex);
                 fuelChanged = 1;
             }
-        }
 
-        if (carriedPartIndex >= 0) {
-            shipParts[carriedPartIndex].x = pixelX + SHIP_PART_CARRY_OFFSET_X;
-            shipParts[carriedPartIndex].y = pixelY + SHIP_PART_CARRY_OFFSET_Y;
-            if (shipParts[carriedPartIndex].y < PLAYFIELD_TOP) {
-                shipParts[carriedPartIndex].y = PLAYFIELD_TOP;
+            if (fuel.state == FUEL_FALLING_FROM_SKY) {
+                updateFuelFallingFromSky(&fuel);
+                fuelChanged = 1;
             }
-            carriedPartRect = getShipPartRect(&shipParts[carriedPartIndex]);
-            markPartChanged(changedParts, &changedPartCount, carriedPartIndex);
 
-            if (rectsOverlap(&carriedPartRect, &shipDeliveryZoneRect)) {
-                if (canDeliverShipPart(shipParts, carriedPartIndex)) {
-                    shipParts[carriedPartIndex].x = shipParts[carriedPartIndex].attachX;
-                    if (shipParts[carriedPartIndex].y >= shipParts[carriedPartIndex].attachY) {
-                        shipParts[carriedPartIndex].y = shipParts[carriedPartIndex].attachY - 1;
+            if (fuel.state == FUEL_AVAILABLE && carriedPartIndex < 0) {
+                fuelRect = getFuelRect(&fuel);
+                if (rectsOverlap(&playerRect, &fuelRect)) {
+                    fuel.state = FUEL_CARRIED;
+                    fuelChanged = 1;
+                }
+            }
+
+            if (carriedPartIndex >= 0) {
+                shipParts[carriedPartIndex].x = pixelX + SHIP_PART_CARRY_OFFSET_X;
+                shipParts[carriedPartIndex].y = pixelY + SHIP_PART_CARRY_OFFSET_Y;
+                if (shipParts[carriedPartIndex].y < PLAYFIELD_TOP) {
+                    shipParts[carriedPartIndex].y = PLAYFIELD_TOP;
+                }
+                carriedPartRect = getShipPartRect(&shipParts[carriedPartIndex]);
+                markPartChanged(changedParts, &changedPartCount, carriedPartIndex);
+
+                if (rectsOverlap(&carriedPartRect, &shipDeliveryZoneRect)) {
+                    if (canDeliverShipPart(shipParts, carriedPartIndex)) {
+                        shipParts[carriedPartIndex].x = shipParts[carriedPartIndex].attachX;
+                        if (shipParts[carriedPartIndex].y >= shipParts[carriedPartIndex].attachY) {
+                            shipParts[carriedPartIndex].y = shipParts[carriedPartIndex].attachY - 1;
+                        }
+                        shipParts[carriedPartIndex].dropping = 1;
+                        droppingPartIndex = carriedPartIndex;
+                        markPartChanged(changedParts, &changedPartCount, carriedPartIndex);
+                        carriedPartIndex = -1;
                     }
-                    shipParts[carriedPartIndex].dropping = 1;
-                    droppingPartIndex = carriedPartIndex;
-                    markPartChanged(changedParts, &changedPartCount, carriedPartIndex);
-                    carriedPartIndex = -1;
                 }
             }
-        }
 
-        if (droppingPartIndex >= 0) {
-            shipParts[droppingPartIndex].y += SHIP_PART_DROP_SPEED;
-            if (shipParts[droppingPartIndex].y >= shipParts[droppingPartIndex].attachY) {
-                shipParts[droppingPartIndex].y = shipParts[droppingPartIndex].attachY;
-                shipParts[droppingPartIndex].dropping = 0;
-                shipParts[droppingPartIndex].delivered = 1;
-                markPartChanged(changedParts, &changedPartCount, droppingPartIndex);
-                droppingPartIndex = -1;
-            } else {
-                markPartChanged(changedParts, &changedPartCount, droppingPartIndex);
+            if (droppingPartIndex >= 0) {
+                shipParts[droppingPartIndex].y += SHIP_PART_DROP_SPEED;
+                if (shipParts[droppingPartIndex].y >= shipParts[droppingPartIndex].attachY) {
+                    shipParts[droppingPartIndex].y = shipParts[droppingPartIndex].attachY;
+                    shipParts[droppingPartIndex].dropping = 0;
+                    shipParts[droppingPartIndex].delivered = 1;
+                    markPartChanged(changedParts, &changedPartCount, droppingPartIndex);
+                    droppingPartIndex = -1;
+                } else {
+                    markPartChanged(changedParts, &changedPartCount, droppingPartIndex);
+                }
             }
-        }
 
-        if (fuel.state == FUEL_CARRIED) {
-            fuel.x = pixelX + FUEL_CARRY_OFFSET_X;
-            fuel.y = pixelY + FUEL_CARRY_OFFSET_Y;
-            if (fuel.y < PLAYFIELD_TOP) {
-                fuel.y = PLAYFIELD_TOP;
+            if (fuel.state == FUEL_CARRIED) {
+                fuel.x = pixelX + FUEL_CARRY_OFFSET_X;
+                fuel.y = pixelY + FUEL_CARRY_OFFSET_Y;
+                if (fuel.y < PLAYFIELD_TOP) {
+                    fuel.y = PLAYFIELD_TOP;
+                }
+                fuelRect = getFuelRect(&fuel);
+                fuelChanged = 1;
+
+                if (rectsOverlap(&fuelRect, &shipDeliveryZoneRect) && canDeliverFuel(shipParts)) {
+                    fuel.x = fuel.targetX;
+                    if (fuel.y >= fuel.targetY) {
+                        fuel.y = fuel.targetY - 1;
+                    }
+                    fuel.state = FUEL_DROPPING_TO_SHIP;
+                    fuelChanged = 1;
+                }
             }
-            fuelRect = getFuelRect(&fuel);
-            fuelChanged = 1;
 
-            if (rectsOverlap(&fuelRect, &shipDeliveryZoneRect) && canDeliverFuel(shipParts)) {
-                fuel.x = fuel.targetX;
+            if (fuel.state == FUEL_DROPPING_TO_SHIP) {
+                fuel.y += FUEL_DROP_SPEED;
                 if (fuel.y >= fuel.targetY) {
-                    fuel.y = fuel.targetY - 1;
+                    fuel.y = fuel.targetY;
+                    deliveredFuelCount++;
+                    if (deliveredFuelCount > FUEL_REQUIRED_COUNT) {
+                        deliveredFuelCount = FUEL_REQUIRED_COUNT;
+                    }
+
+                    if (isFuelObjectiveComplete(deliveredFuelCount)) {
+                        fuel.state = FUEL_DELIVERED;
+                        fuelObjectiveComplete = 1;
+                    } else {
+                        fuel.state = FUEL_INACTIVE;
+                        fuelSpawnIndex++;
+                    }
                 }
-                fuel.state = FUEL_DROPPING_TO_SHIP;
                 fuelChanged = 1;
             }
         }
 
-        if (fuel.state == FUEL_DROPPING_TO_SHIP) {
-            fuel.y += FUEL_DROP_SPEED;
-            if (fuel.y >= fuel.targetY) {
-                fuel.y = fuel.targetY;
-                deliveredFuelCount++;
-                if (deliveredFuelCount > FUEL_REQUIRED_COUNT) {
-                    deliveredFuelCount = FUEL_REQUIRED_COUNT;
-                }
-
-                if (isFuelObjectiveComplete(deliveredFuelCount)) {
-                    fuel.state = FUEL_DELIVERED;
-                    fuelObjectiveComplete = 1;
-                } else {
-                    fuel.state = FUEL_INACTIVE;
-                    fuelSpawnIndex++;
-                }
-            }
+        shipReady = isShipReady(shipParts, deliveredFuelCount);
+        if (shipReady && !stageClear && rectsOverlap(&playerRect, &shipLaunchZoneRect)) {
+            stageClear = 1;
             fuelChanged = 1;
         }
 
-        clearDynamicRect(&oldPlayerRect, shipParts, &fuel, carriedPartIndex, droppingPartIndex);
+        clearDynamicRect(
+            &oldPlayerRect,
+            shipParts,
+            &fuel,
+            carriedPartIndex,
+            droppingPartIndex,
+            shipReady,
+            stageClear
+        );
 
         for (i = 0; i < changedPartCount; i++) {
             Rect oldPartRect = getShipPartRect(&oldShipParts[changedParts[i]]);
-            clearDynamicRect(&oldPartRect, shipParts, &fuel, carriedPartIndex, droppingPartIndex);
+            clearDynamicRect(
+                &oldPartRect,
+                shipParts,
+                &fuel,
+                carriedPartIndex,
+                droppingPartIndex,
+                shipReady,
+                stageClear
+            );
         }
 
         if (fuelChanged) {
             Rect oldFuelRect = getFuelRect(&oldFuel);
-            clearDynamicRect(&oldFuelRect, shipParts, &fuel, carriedPartIndex, droppingPartIndex);
+            clearDynamicRect(
+                &oldFuelRect,
+                shipParts,
+                &fuel,
+                carriedPartIndex,
+                droppingPartIndex,
+                shipReady,
+                stageClear
+            );
         }
 
         if (carriedPartIndex >= 0) {

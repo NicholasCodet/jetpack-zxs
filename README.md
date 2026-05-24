@@ -14,7 +14,7 @@ Current focus:
 
 - Keep the base GBA build setup stable.
 - Refine fixed-screen composition with HUD and delivery-zone layout.
-- Current ROM behavior: dirty-rectangle Mode 3 redraw with readable placeholder HUD text (SCORE/LIVES/HI), Jetpac-like fixed-screen composition, and a three-section ship where the first section starts placed and the remaining two parts are released over the ship delivery zone, drop into their slots automatically, and must be delivered in order (body then nose). After full ship assembly, a six-fuel loop starts: one fuel at a time spawns at the top, falls to a platform/floor, becomes pickable, and auto-delivers to the ship until 6 fuels are delivered.
+- Current ROM behavior: dirty-rectangle Mode 3 redraw with readable placeholder HUD text (SCORE/LIVES/HI), Jetpac-like fixed-screen composition, and a three-section ship where the first section starts placed and the remaining two parts are released over the ship delivery zone, drop into their slots automatically, and must be delivered in order (body then nose). After full ship assembly, a six-fuel loop starts: one fuel at a time spawns at the top, falls to a platform/floor, becomes pickable, and auto-delivers to the ship until 6 fuels are delivered. Reaching this objective marks the ship as ready, and overlapping the launch zone triggers a stage-clear placeholder state.
 
 ## Requirements
 
