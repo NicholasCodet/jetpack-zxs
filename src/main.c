@@ -38,8 +38,9 @@
 #define SHIP_BASE_COLOR RGB5(14, 10, 8)
 #define SHIP_BASE_TOP_COLOR RGB5(22, 18, 14)
 #define SHIP_SECTION_COLOR RGB5(26, 22, 12)
-#define SHIP_PART_COLOR RGB5(24, 22, 8)
-#define SHIP_PART_DELIVERED_COLOR RGB5(30, 26, 10)
+#define SHIP_PART_BASE_COLOR RGB5(30, 26, 10)
+#define SHIP_PART_BODY_COLOR RGB5(12, 24, 20)
+#define SHIP_PART_NOSE_COLOR RGB5(24, 18, 31)
 #define DELIVERY_ZONE_COLOR RGB5(4, 4, 4)
 #define DELIVERY_ZONE_LINE_COLOR RGB5(8, 8, 8)
 #define PLAYER_COLOR RGB5(31, 31, 31)
@@ -54,7 +55,7 @@ typedef struct {
 
 static const Platform platforms[] = {
     { 34, 62, 58, 4 },
-    { 112, 88, 48, 4 },
+    { 104, 88, 62, 4 },
     { 166, 42, 58, 4 }
 };
 
@@ -70,6 +71,7 @@ typedef struct {
     int y;
     int attachX;
     int attachY;
+    int type;
     int delivered;
 } ShipPart;
 
@@ -96,6 +98,12 @@ typedef struct {
 #define SHIP_PART_WIDTH 6
 #define SHIP_PART_HEIGHT 6
 #define SHIP_PART_COUNT 3
+#define SHIP_PART_INDEX_BASE 0
+#define SHIP_PART_INDEX_BODY 1
+#define SHIP_PART_INDEX_NOSE 2
+#define SHIP_PART_BASE 0
+#define SHIP_PART_BODY 1
+#define SHIP_PART_NOSE 2
 #define SHIP_PART_CARRY_OFFSET_X 1
 #define SHIP_PART_CARRY_OFFSET_Y -7
 
@@ -112,9 +120,9 @@ typedef struct {
 #define SHIP_DELIVERY_ZONE_HEIGHT 40
 
 static const ShipPart shipPartDefaults[SHIP_PART_COUNT] = {
-    { SHIP_PART_SLOT0_X, SHIP_PART_SLOT0_Y, SHIP_PART_SLOT0_X, SHIP_PART_SLOT0_Y, 1 },
-    { 60, 56, SHIP_PART_SLOT1_X, SHIP_PART_SLOT1_Y, 0 },
-    { 192, 36, SHIP_PART_SLOT2_X, SHIP_PART_SLOT2_Y, 0 }
+    { SHIP_PART_SLOT0_X, SHIP_PART_SLOT0_Y, SHIP_PART_SLOT0_X, SHIP_PART_SLOT0_Y, SHIP_PART_BASE, 1 },
+    { 60, 56, SHIP_PART_SLOT1_X, SHIP_PART_SLOT1_Y, SHIP_PART_BODY, 0 },
+    { 192, 36, SHIP_PART_SLOT2_X, SHIP_PART_SLOT2_Y, SHIP_PART_NOSE, 0 }
 };
 
 static void fillScreen(u16 color)
@@ -288,10 +296,17 @@ static void drawShipBase(void)
     drawRect(SHIP_NOSE_X, SHIP_NOSE_Y + 1, SHIP_NOSE_WIDTH, SHIP_NOSE_HEIGHT - 1, SHIP_BASE_COLOR);
 }
 
-static void drawShipPart(int x, int y, int delivered)
+static void drawShipPart(const ShipPart *part)
 {
-    u16 color = delivered ? SHIP_PART_DELIVERED_COLOR : SHIP_PART_COLOR;
-    drawRect(x, y, SHIP_PART_WIDTH, SHIP_PART_HEIGHT, color);
+    u16 color = SHIP_PART_BASE_COLOR;
+
+    if (part->type == SHIP_PART_BODY) {
+        color = SHIP_PART_BODY_COLOR;
+    } else if (part->type == SHIP_PART_NOSE) {
+        color = SHIP_PART_NOSE_COLOR;
+    }
+
+    drawRect(part->x, part->y, SHIP_PART_WIDTH, SHIP_PART_HEIGHT, color);
 }
 
 static void drawDeliveryZone(void)
@@ -405,7 +420,7 @@ static void redrawStaticInRect(const Rect *rect, const ShipPart *shipParts, int 
         }
         partRect = getShipPartRect(&shipParts[i]);
         if (rectsOverlap(rect, &partRect)) {
-            drawShipPart(shipParts[i].x, shipParts[i].y, shipParts[i].delivered);
+            drawShipPart(&shipParts[i]);
         }
     }
 }
@@ -434,7 +449,7 @@ static void drawStaticScene(const ShipPart *shipParts, int carriedPartIndex)
         if (i == carriedPartIndex) {
             continue;
         }
-        drawShipPart(shipParts[i].x, shipParts[i].y, shipParts[i].delivered);
+        drawShipPart(&shipParts[i]);
     }
 }
 
@@ -504,7 +519,6 @@ int main(void)
     Rect oldPlayerRect;
     Rect shipDeliveryZoneRect;
     Rect shipPartRect;
-    Rect carriedPartNewRect;
     u16 keys;
 
     const int minX = 0;
@@ -640,11 +654,16 @@ int main(void)
             changedParts[changedPartCount++] = carriedPartIndex;
 
             if (rectsOverlap(&playerRect, &shipDeliveryZoneRect)) {
-                shipParts[carriedPartIndex].delivered = 1;
-                shipParts[carriedPartIndex].x = shipParts[carriedPartIndex].attachX;
-                shipParts[carriedPartIndex].y = shipParts[carriedPartIndex].attachY;
-                changedParts[changedPartCount++] = carriedPartIndex;
-                carriedPartIndex = -1;
+                if (
+                    shipParts[carriedPartIndex].type != SHIP_PART_NOSE ||
+                    shipParts[SHIP_PART_INDEX_BODY].delivered
+                ) {
+                    shipParts[carriedPartIndex].delivered = 1;
+                    shipParts[carriedPartIndex].x = shipParts[carriedPartIndex].attachX;
+                    shipParts[carriedPartIndex].y = shipParts[carriedPartIndex].attachY;
+                    changedParts[changedPartCount++] = carriedPartIndex;
+                    carriedPartIndex = -1;
+                }
             }
         }
 
@@ -656,12 +675,7 @@ int main(void)
         }
 
         if (carriedPartIndex >= 0) {
-            carriedPartNewRect = getShipPartRect(&shipParts[carriedPartIndex]);
-            drawShipPart(
-                carriedPartNewRect.x,
-                carriedPartNewRect.y,
-                shipParts[carriedPartIndex].delivered
-            );
+            drawShipPart(&shipParts[carriedPartIndex]);
         }
 
         drawRect(playerRect.x, playerRect.y, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
