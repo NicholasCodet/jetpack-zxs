@@ -53,9 +53,9 @@ typedef struct {
 } Platform;
 
 static const Platform platforms[] = {
-    { 34, 112, 52, 4 },
-    { 102, 88, 48, 4 },
-    { 162, 58, 52, 4 }
+    { 34, 62, 58, 4 },
+    { 112, 88, 48, 4 },
+    { 166, 42, 58, 4 }
 };
 
 typedef struct {
@@ -75,11 +75,23 @@ typedef struct {
 
 #define PLATFORM_COUNT (sizeof(platforms) / sizeof(platforms[0]))
 
-#define SHIP_BASE_WIDTH 36
-#define SHIP_BASE_HEIGHT 10
-#define SHIP_BASE_X 110
+#define SHIP_BASE_WIDTH 20
+#define SHIP_BASE_HEIGHT 6
+#define SHIP_BASE_X 146
 #define SHIP_BASE_Y (FLOOR_TOP_Y - SHIP_BASE_HEIGHT)
-#define PLAYER_SPAWN_X 28
+#define SHIP_BODY_WIDTH 12
+#define SHIP_BODY_HEIGHT 22
+#define SHIP_BODY_X (SHIP_BASE_X + 4)
+#define SHIP_BODY_Y (SHIP_BASE_Y - SHIP_BODY_HEIGHT)
+#define SHIP_NOSE_WIDTH 8
+#define SHIP_NOSE_HEIGHT 10
+#define SHIP_NOSE_X (SHIP_BASE_X + 6)
+#define SHIP_NOSE_Y (SHIP_BODY_Y - SHIP_NOSE_HEIGHT)
+#define SHIP_BOUNDS_X SHIP_BASE_X
+#define SHIP_BOUNDS_Y SHIP_NOSE_Y
+#define SHIP_BOUNDS_WIDTH SHIP_BASE_WIDTH
+#define SHIP_BOUNDS_HEIGHT (FLOOR_TOP_Y - SHIP_NOSE_Y)
+#define PLAYER_SPAWN_X 34
 
 #define SHIP_PART_WIDTH 6
 #define SHIP_PART_HEIGHT 6
@@ -88,19 +100,21 @@ typedef struct {
 #define SHIP_PART_CARRY_OFFSET_Y -7
 
 #define SHIP_PART_SLOT0_X (SHIP_BASE_X + 7)
-#define SHIP_PART_SLOT1_X (SHIP_BASE_X + 15)
-#define SHIP_PART_SLOT2_X (SHIP_BASE_X + 23)
-#define SHIP_PART_SLOT_Y (SHIP_BASE_Y - SHIP_PART_HEIGHT + 1)
+#define SHIP_PART_SLOT0_Y (SHIP_BODY_Y + 14)
+#define SHIP_PART_SLOT1_X (SHIP_BASE_X + 7)
+#define SHIP_PART_SLOT1_Y (SHIP_BODY_Y + 8)
+#define SHIP_PART_SLOT2_X (SHIP_BASE_X + 7)
+#define SHIP_PART_SLOT2_Y (SHIP_BODY_Y + 2)
 
-#define SHIP_DELIVERY_ZONE_X (SHIP_BASE_X - 4)
-#define SHIP_DELIVERY_ZONE_Y (SHIP_BASE_Y - 12)
-#define SHIP_DELIVERY_ZONE_WIDTH (SHIP_BASE_WIDTH + 8)
-#define SHIP_DELIVERY_ZONE_HEIGHT 12
+#define SHIP_DELIVERY_ZONE_X (SHIP_BASE_X - 1)
+#define SHIP_DELIVERY_ZONE_Y (SHIP_NOSE_Y - 2)
+#define SHIP_DELIVERY_ZONE_WIDTH 22
+#define SHIP_DELIVERY_ZONE_HEIGHT 40
 
 static const ShipPart shipPartDefaults[SHIP_PART_COUNT] = {
-    { SHIP_PART_SLOT0_X, SHIP_PART_SLOT_Y, SHIP_PART_SLOT0_X, SHIP_PART_SLOT_Y, 1 },
-    { 57, 106, SHIP_PART_SLOT1_X, SHIP_PART_SLOT_Y, 0 },
-    { 185, 52, SHIP_PART_SLOT2_X, SHIP_PART_SLOT_Y, 0 }
+    { SHIP_PART_SLOT0_X, SHIP_PART_SLOT0_Y, SHIP_PART_SLOT0_X, SHIP_PART_SLOT0_Y, 1 },
+    { 60, 56, SHIP_PART_SLOT1_X, SHIP_PART_SLOT1_Y, 0 },
+    { 192, 36, SHIP_PART_SLOT2_X, SHIP_PART_SLOT2_Y, 0 }
 };
 
 static void fillScreen(u16 color)
@@ -265,9 +279,13 @@ static int rectsOverlap(const Rect *a, const Rect *b)
 static void drawShipBase(void)
 {
     drawRect(SHIP_BASE_X, SHIP_BASE_Y, SHIP_BASE_WIDTH, 1, SHIP_BASE_TOP_COLOR);
-    if (SHIP_BASE_HEIGHT > 1) {
-        drawRect(SHIP_BASE_X, SHIP_BASE_Y + 1, SHIP_BASE_WIDTH, SHIP_BASE_HEIGHT - 1, SHIP_BASE_COLOR);
-    }
+    drawRect(SHIP_BASE_X, SHIP_BASE_Y + 1, SHIP_BASE_WIDTH, SHIP_BASE_HEIGHT - 1, SHIP_BASE_COLOR);
+
+    drawRect(SHIP_BODY_X, SHIP_BODY_Y, SHIP_BODY_WIDTH, 1, SHIP_BASE_TOP_COLOR);
+    drawRect(SHIP_BODY_X, SHIP_BODY_Y + 1, SHIP_BODY_WIDTH, SHIP_BODY_HEIGHT - 1, SHIP_BASE_COLOR);
+
+    drawRect(SHIP_NOSE_X, SHIP_NOSE_Y, SHIP_NOSE_WIDTH, 1, SHIP_BASE_TOP_COLOR);
+    drawRect(SHIP_NOSE_X, SHIP_NOSE_Y + 1, SHIP_NOSE_WIDTH, SHIP_NOSE_HEIGHT - 1, SHIP_BASE_COLOR);
 }
 
 static void drawShipPart(int x, int y, int delivered)
@@ -371,10 +389,10 @@ static void redrawStaticInRect(const Rect *rect, const ShipPart *shipParts, int 
         }
     }
 
-    shipBaseRect.x = SHIP_BASE_X;
-    shipBaseRect.y = SHIP_BASE_Y;
-    shipBaseRect.width = SHIP_BASE_WIDTH;
-    shipBaseRect.height = SHIP_BASE_HEIGHT;
+    shipBaseRect.x = SHIP_BOUNDS_X;
+    shipBaseRect.y = SHIP_BOUNDS_Y;
+    shipBaseRect.width = SHIP_BOUNDS_WIDTH;
+    shipBaseRect.height = SHIP_BOUNDS_HEIGHT;
     if (rectsOverlap(rect, &shipBaseRect)) {
         drawShipBase();
     }
