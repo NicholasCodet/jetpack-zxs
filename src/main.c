@@ -48,6 +48,7 @@
 #define PLAYER_COLOR RGB5(31, 31, 31)
 #define READY_TEXT_COLOR RGB5(12, 24, 12)
 #define CLEAR_TEXT_COLOR RGB5(31, 20, 8)
+#define PROJECTILE_COLOR RGB5(31, 31, 10)
 #define DRAW_DELIVERY_ZONE_DEBUG 0
 #define DRAW_LAUNCH_ZONE_DEBUG 0
 
@@ -121,6 +122,10 @@ typedef struct {
 #define SHIP_PART_CARRY_OFFSET_X 1
 #define SHIP_PART_CARRY_OFFSET_Y -7
 #define SHIP_PART_DROP_SPEED 1
+
+#define PROJECTILE_WIDTH 3
+#define PROJECTILE_HEIGHT 2
+#define PROJECTILE_SPEED 3
 
 #define SHIP_PART_SLOT0_X (SHIP_BASE_X + 7)
 #define SHIP_PART_SLOT0_Y (SHIP_BODY_Y + 14)
@@ -365,6 +370,11 @@ static void drawFuel(const Fuel *fuel)
     drawRect(fuel->x, fuel->y, FUEL_WIDTH, FUEL_HEIGHT, color);
 }
 
+static void drawProjectile(int x, int y)
+{
+    drawRect(x, y, PROJECTILE_WIDTH, PROJECTILE_HEIGHT, PROJECTILE_COLOR);
+}
+
 static void drawDeliveryZone(void)
 {
 #if DRAW_DELIVERY_ZONE_DEBUG
@@ -445,6 +455,17 @@ static Rect getFuelRect(const Fuel *fuel)
     rect.y = fuel->y;
     rect.width = FUEL_WIDTH;
     rect.height = FUEL_HEIGHT;
+    return rect;
+}
+
+static Rect getProjectileRect(int x, int y)
+{
+    Rect rect;
+
+    rect.x = x;
+    rect.y = y;
+    rect.width = PROJECTILE_WIDTH;
+    rect.height = PROJECTILE_HEIGHT;
     return rect;
 }
 
@@ -796,7 +817,13 @@ int main(void)
     int fuelObjectiveComplete;
     int shipReady;
     int stageClear;
+    int playerFacing;
     int shipAssembled;
+    int projectileActive;
+    int oldProjectileActive;
+    int projectileX;
+    int projectileY;
+    int projectileVelX;
     int i;
     int changedParts[SHIP_PART_COUNT];
     int changedPartCount;
@@ -812,7 +839,10 @@ int main(void)
     Rect shipPartRect;
     Rect carriedPartRect;
     Rect fuelRect;
+    Rect oldProjectileRect;
+    Rect projectileRect;
     u16 keys;
+    u16 keysPressed;
 
     const int minY = TO_FIX(PLAYFIELD_TOP);
     const int floorY = TO_FIX(FLOOR_TOP_Y - PLAYER_HEIGHT);
@@ -833,6 +863,12 @@ int main(void)
     fuelObjectiveComplete = 0;
     shipReady = 0;
     stageClear = 0;
+    playerFacing = 1;
+    projectileActive = 0;
+    oldProjectileActive = 0;
+    projectileX = 0;
+    projectileY = 0;
+    projectileVelX = 0;
     for (i = 0; i < SHIP_PART_COUNT; i++) {
         shipParts[i] = shipPartDefaults[i];
     }
@@ -853,10 +889,15 @@ int main(void)
         VBlankIntrWait();
         scanKeys();
         keys = keysHeld();
+        keysPressed = keysDown();
 
         oldPixelX = FROM_FIX(playerX);
         oldPixelY = FROM_FIX(playerY);
         oldPlayerRect = getPlayerRect(oldPixelX, oldPixelY);
+        oldProjectileActive = projectileActive;
+        if (oldProjectileActive) {
+            oldProjectileRect = getProjectileRect(projectileX, projectileY);
+        }
         for (i = 0; i < SHIP_PART_COUNT; i++) {
             oldShipParts[i] = shipParts[i];
         }
@@ -866,8 +907,10 @@ int main(void)
 
         if (keys & KEY_LEFT) {
             playerVelX -= PLAYER_MOVE_ACCEL;
+            playerFacing = -1;
         } else if (keys & KEY_RIGHT) {
             playerVelX += PLAYER_MOVE_ACCEL;
+            playerFacing = 1;
         } else if (playerVelX > 0) {
             playerVelX -= PLAYER_FRICTION;
             if (playerVelX < 0) {
@@ -921,6 +964,17 @@ int main(void)
         pixelX = FROM_FIX(playerX);
         pixelY = FROM_FIX(playerY);
         playerRect = getPlayerRect(pixelX, pixelY);
+
+        if ((keysPressed & KEY_B) && !projectileActive) {
+            projectileActive = 1;
+            projectileY = pixelY + (PLAYER_HEIGHT / 2) - (PROJECTILE_HEIGHT / 2);
+            projectileVelX = playerFacing > 0 ? PROJECTILE_SPEED : -PROJECTILE_SPEED;
+            if (playerFacing > 0) {
+                projectileX = pixelX + PLAYER_WIDTH;
+            } else {
+                projectileX = pixelX - PROJECTILE_WIDTH;
+            }
+        }
 
         if (!stageClear && carriedPartIndex < 0 && droppingPartIndex < 0 && fuel.state != FUEL_CARRIED) {
             for (i = 0; i < SHIP_PART_COUNT; i++) {
@@ -1048,6 +1102,13 @@ int main(void)
             fuelChanged = 1;
         }
 
+        if (projectileActive) {
+            projectileX += projectileVelX;
+            if (projectileX >= SCREEN_WIDTH || projectileX + PROJECTILE_WIDTH <= 0) {
+                projectileActive = 0;
+            }
+        }
+
         clearDynamicRect(
             &oldPlayerRect,
             shipParts,
@@ -1057,6 +1118,18 @@ int main(void)
             shipReady,
             stageClear
         );
+
+        if (oldProjectileActive) {
+            clearDynamicRect(
+                &oldProjectileRect,
+                shipParts,
+                &fuel,
+                carriedPartIndex,
+                droppingPartIndex,
+                shipReady,
+                stageClear
+            );
+        }
 
         for (i = 0; i < changedPartCount; i++) {
             Rect oldPartRect = getShipPartRect(&oldShipParts[changedParts[i]]);
@@ -1092,6 +1165,10 @@ int main(void)
         }
         if (isFuelDynamicVisible(&fuel)) {
             drawFuel(&fuel);
+        }
+        if (projectileActive) {
+            projectileRect = getProjectileRect(projectileX, projectileY);
+            drawProjectile(projectileRect.x, projectileRect.y);
         }
 
         drawRect(playerRect.x, playerRect.y, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);

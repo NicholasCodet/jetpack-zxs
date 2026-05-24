@@ -13,6 +13,7 @@ Current focus:
 - Expand the fuel loop to 6 deliveries with one active fuel at a time after ship assembly.
 - Add ship-ready and stage-clear placeholder triggers after the fuel objective.
 - Restore Jetpac-style horizontal wrap for player movement.
+- Start Milestone 5 with a minimal one-projectile B-button shooting prototype.
 
 Next milestone: Milestone 4 — Enemies
 
@@ -125,6 +126,9 @@ Success criteria:
 ## Milestone 5 — Shooting
 
 Goal: let the player defend themselves.
+
+Status: In progress
+Progress update: minimal single-projectile B-button prototype added on 2026-05-24 (no enemy interactions or scoring yet).
 
 Tasks:
 
