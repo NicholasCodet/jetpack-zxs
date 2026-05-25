@@ -83,7 +83,9 @@ typedef struct {
     int attachY;
     int type;
     int dropping;
+    int droppingToShip;
     int delivered;
+    int pickupScored;
 } ShipPart;
 
 typedef struct {
@@ -92,6 +94,7 @@ typedef struct {
     int targetX;
     int targetY;
     int state;
+    int pickupScored;
 } Fuel;
 
 #define PLATFORM_COUNT (sizeof(platforms) / sizeof(platforms[0]))
@@ -130,6 +133,7 @@ typedef struct {
 #define PROJECTILE_WIDTH 18
 #define PROJECTILE_HEIGHT 2
 #define PROJECTILE_SPEED 7
+#define PROJECTILE_MAX_LIFETIME_FRAMES 48
 
 #define ENEMY_WIDTH 8
 #define ENEMY_HEIGHT 8
@@ -175,13 +179,13 @@ typedef struct {
 #define FUEL_DELIVERED 5
 
 static const ShipPart shipPartDefaults[SHIP_PART_COUNT] = {
-    { SHIP_PART_SLOT0_X, SHIP_PART_SLOT0_Y, SHIP_PART_SLOT0_X, SHIP_PART_SLOT0_Y, SHIP_PART_BASE, 0, 1 },
-    { 60, 56, SHIP_PART_SLOT1_X, SHIP_PART_SLOT1_Y, SHIP_PART_BODY, 0, 0 },
-    { 192, 36, SHIP_PART_SLOT2_X, SHIP_PART_SLOT2_Y, SHIP_PART_NOSE, 0, 0 }
+    { SHIP_PART_SLOT0_X, SHIP_PART_SLOT0_Y, SHIP_PART_SLOT0_X, SHIP_PART_SLOT0_Y, SHIP_PART_BASE, 0, 0, 1, 1 },
+    { 60, 56, SHIP_PART_SLOT1_X, SHIP_PART_SLOT1_Y, SHIP_PART_BODY, 0, 0, 0, 0 },
+    { 192, 36, SHIP_PART_SLOT2_X, SHIP_PART_SLOT2_Y, SHIP_PART_NOSE, 0, 0, 0, 0 }
 };
 
 static const Fuel fuelDefault = {
-    0, FUEL_SPAWN_Y, FUEL_TARGET_X, FUEL_TARGET_Y, FUEL_INACTIVE
+    0, FUEL_SPAWN_Y, FUEL_TARGET_X, FUEL_TARGET_Y, FUEL_INACTIVE, 0
 };
 
 static const int fuelSpawnXs[FUEL_REQUIRED_COUNT] = { 36, 118, 192, 72, 170, 108 };
@@ -785,6 +789,7 @@ static void spawnNextFuel(Fuel *fuel, int fuelSpawnIndex)
     fuel->x = fuelSpawnXs[fuelSpawnIndex];
     fuel->y = FUEL_SPAWN_Y;
     fuel->state = FUEL_FALLING_FROM_SKY;
+    fuel->pickupScored = 0;
 }
 
 static void updateFuelFallingFromSky(Fuel *fuel)
@@ -839,6 +844,63 @@ static void updateFuelFallingFromSky(Fuel *fuel)
     if (fuel->y + FUEL_HEIGHT >= FLOOR_TOP_Y) {
         fuel->y = FLOOR_TOP_Y - FUEL_HEIGHT;
         fuel->state = FUEL_AVAILABLE;
+    }
+}
+
+static void updateReleasedShipPartFall(ShipPart *part)
+{
+    int partLeft;
+    int partRight;
+    int previousBottomY;
+    int currentBottomY;
+    int bestPlatformTop;
+    int landingFound;
+    int previousPartY;
+    unsigned int i;
+
+    if (!part->dropping || part->droppingToShip || part->delivered) {
+        return;
+    }
+
+    previousPartY = part->y;
+    part->y += SHIP_PART_DROP_SPEED;
+
+    partLeft = part->x;
+    partRight = partLeft + SHIP_PART_WIDTH;
+    previousBottomY = previousPartY + SHIP_PART_HEIGHT;
+    currentBottomY = part->y + SHIP_PART_HEIGHT;
+    bestPlatformTop = SCREEN_HEIGHT + 1;
+    landingFound = 0;
+
+    for (i = 0; i < PLATFORM_COUNT; i++) {
+        int platformLeft = platforms[i].x;
+        int platformRight = platforms[i].x + platforms[i].width;
+        int platformTop = platforms[i].y;
+
+        if (partRight <= platformLeft || partLeft >= platformRight) {
+            continue;
+        }
+        if (previousBottomY > platformTop || currentBottomY < platformTop) {
+            continue;
+        }
+
+        if (!landingFound || platformTop < bestPlatformTop) {
+            bestPlatformTop = platformTop;
+            landingFound = 1;
+        }
+    }
+
+    if (landingFound) {
+        part->y = bestPlatformTop - SHIP_PART_HEIGHT;
+        part->dropping = 0;
+        part->droppingToShip = 0;
+        return;
+    }
+
+    if (part->y + SHIP_PART_HEIGHT >= FLOOR_TOP_Y) {
+        part->y = FLOOR_TOP_Y - SHIP_PART_HEIGHT;
+        part->dropping = 0;
+        part->droppingToShip = 0;
     }
 }
 
@@ -944,6 +1006,7 @@ int main(void)
     int projectileX;
     int projectileY;
     int projectileVelX;
+    int projectileLifetime;
     int enemyActive;
     int oldEnemyActive;
     int enemyX;
@@ -1004,6 +1067,7 @@ int main(void)
     projectileX = 0;
     projectileY = 0;
     projectileVelX = 0;
+    projectileLifetime = 0;
     enemyActive = 1;
     oldEnemyActive = 0;
     enemyX = -ENEMY_WIDTH;
@@ -1137,6 +1201,7 @@ int main(void)
             projectileActive = 1;
             projectileY = pixelY + (PLAYER_HEIGHT / 2) - (PROJECTILE_HEIGHT / 2);
             projectileVelX = playerFacing > 0 ? PROJECTILE_SPEED : -PROJECTILE_SPEED;
+            projectileLifetime = PROJECTILE_MAX_LIFETIME_FRAMES;
             if (playerFacing > 0) {
                 projectileX = pixelX + PLAYER_WIDTH;
             } else {
@@ -1161,7 +1226,10 @@ int main(void)
                 if (rectsOverlap(&playerRect, &shipPartRect)) {
                     carriedPartIndex = i;
                     markPartChanged(changedParts, &changedPartCount, i);
-                    addScore(&score, &highScore, &hudChanged, SCORE_SHIP_PART_PICKUP);
+                    if (!shipParts[i].pickupScored) {
+                        shipParts[i].pickupScored = 1;
+                        addScore(&score, &highScore, &hudChanged, SCORE_SHIP_PART_PICKUP);
+                    }
                     break;
                 }
             }
@@ -1189,7 +1257,10 @@ int main(void)
                 if (rectsOverlap(&playerRect, &fuelRect)) {
                     fuel.state = FUEL_CARRIED;
                     fuelChanged = 1;
-                    addScore(&score, &highScore, &hudChanged, SCORE_FUEL_PICKUP);
+                    if (!fuel.pickupScored) {
+                        fuel.pickupScored = 1;
+                        addScore(&score, &highScore, &hudChanged, SCORE_FUEL_PICKUP);
+                    }
                 }
             }
 
@@ -1209,6 +1280,7 @@ int main(void)
                             shipParts[carriedPartIndex].y = shipParts[carriedPartIndex].attachY - 1;
                         }
                         shipParts[carriedPartIndex].dropping = 1;
+                        shipParts[carriedPartIndex].droppingToShip = 1;
                         droppingPartIndex = carriedPartIndex;
                         markPartChanged(changedParts, &changedPartCount, carriedPartIndex);
                         carriedPartIndex = -1;
@@ -1217,15 +1289,24 @@ int main(void)
             }
 
             if (droppingPartIndex >= 0) {
-                shipParts[droppingPartIndex].y += SHIP_PART_DROP_SPEED;
-                if (shipParts[droppingPartIndex].y >= shipParts[droppingPartIndex].attachY) {
-                    shipParts[droppingPartIndex].y = shipParts[droppingPartIndex].attachY;
-                    shipParts[droppingPartIndex].dropping = 0;
-                    shipParts[droppingPartIndex].delivered = 1;
-                    markPartChanged(changedParts, &changedPartCount, droppingPartIndex);
-                    droppingPartIndex = -1;
+                if (shipParts[droppingPartIndex].droppingToShip) {
+                    shipParts[droppingPartIndex].y += SHIP_PART_DROP_SPEED;
+                    if (shipParts[droppingPartIndex].y >= shipParts[droppingPartIndex].attachY) {
+                        shipParts[droppingPartIndex].y = shipParts[droppingPartIndex].attachY;
+                        shipParts[droppingPartIndex].dropping = 0;
+                        shipParts[droppingPartIndex].droppingToShip = 0;
+                        shipParts[droppingPartIndex].delivered = 1;
+                        markPartChanged(changedParts, &changedPartCount, droppingPartIndex);
+                        droppingPartIndex = -1;
+                    } else {
+                        markPartChanged(changedParts, &changedPartCount, droppingPartIndex);
+                    }
                 } else {
+                    updateReleasedShipPartFall(&shipParts[droppingPartIndex]);
                     markPartChanged(changedParts, &changedPartCount, droppingPartIndex);
+                    if (!shipParts[droppingPartIndex].dropping) {
+                        droppingPartIndex = -1;
+                    }
                 }
             }
 
@@ -1277,7 +1358,14 @@ int main(void)
 
         if (!gameOver && projectileActive) {
             projectileX += projectileVelX;
-            if (projectileX >= SCREEN_WIDTH || projectileX + PROJECTILE_WIDTH <= 0) {
+            if (projectileX >= SCREEN_WIDTH) {
+                projectileX = -PROJECTILE_WIDTH;
+            } else if (projectileX + PROJECTILE_WIDTH <= 0) {
+                projectileX = SCREEN_WIDTH;
+            }
+
+            projectileLifetime--;
+            if (projectileLifetime <= 0) {
                 projectileActive = 0;
             }
         }
@@ -1304,12 +1392,37 @@ int main(void)
         if (!gameOver && enemyActive && invulnerableFrames <= 0) {
             enemyRect = getEnemyRect(enemyX, enemyY);
             if (rectsOverlap(&playerRect, &enemyRect)) {
+                int deathPixelX = playerRect.x;
+                int deathPixelY = playerRect.y;
+
                 lives--;
                 if (lives < 0) {
                     lives = 0;
                 }
                 hudChanged = 1;
                 invulnerableFrames = PLAYER_INVULNERABLE_FRAMES;
+
+                if (carriedPartIndex >= 0) {
+                    shipParts[carriedPartIndex].x = deathPixelX + SHIP_PART_CARRY_OFFSET_X;
+                    shipParts[carriedPartIndex].y = deathPixelY + SHIP_PART_CARRY_OFFSET_Y;
+                    if (shipParts[carriedPartIndex].y < PLAYFIELD_TOP) {
+                        shipParts[carriedPartIndex].y = PLAYFIELD_TOP;
+                    }
+                    shipParts[carriedPartIndex].dropping = 1;
+                    shipParts[carriedPartIndex].droppingToShip = 0;
+                    droppingPartIndex = carriedPartIndex;
+                    markPartChanged(changedParts, &changedPartCount, carriedPartIndex);
+                    carriedPartIndex = -1;
+                }
+                if (fuel.state == FUEL_CARRIED) {
+                    fuel.x = deathPixelX + FUEL_CARRY_OFFSET_X;
+                    fuel.y = deathPixelY + FUEL_CARRY_OFFSET_Y;
+                    if (fuel.y < PLAYFIELD_TOP) {
+                        fuel.y = PLAYFIELD_TOP;
+                    }
+                    fuel.state = FUEL_FALLING_FROM_SKY;
+                    fuelChanged = 1;
+                }
 
                 playerX = TO_FIX(PLAYER_SPAWN_X);
                 playerY = floorY;
@@ -1318,27 +1431,15 @@ int main(void)
                 pixelX = FROM_FIX(playerX);
                 pixelY = FROM_FIX(playerY);
                 playerRect = getPlayerRect(pixelX, pixelY);
-
-                if (carriedPartIndex >= 0) {
-                    shipParts[carriedPartIndex].x = pixelX + SHIP_PART_CARRY_OFFSET_X;
-                    shipParts[carriedPartIndex].y = pixelY + SHIP_PART_CARRY_OFFSET_Y;
-                    if (shipParts[carriedPartIndex].y < PLAYFIELD_TOP) {
-                        shipParts[carriedPartIndex].y = PLAYFIELD_TOP;
-                    }
-                    markPartChanged(changedParts, &changedPartCount, carriedPartIndex);
-                }
-                if (fuel.state == FUEL_CARRIED) {
-                    fuel.x = pixelX + FUEL_CARRY_OFFSET_X;
-                    fuel.y = pixelY + FUEL_CARRY_OFFSET_Y;
-                    if (fuel.y < PLAYFIELD_TOP) {
-                        fuel.y = PLAYFIELD_TOP;
-                    }
-                    fuelChanged = 1;
-                }
+                enemyActive = 1;
+                enemyX = -ENEMY_WIDTH;
+                enemyY = ENEMY_START_Y;
+                enemyVelX = ENEMY_SPEED;
 
                 if (lives == 0) {
                     gameOver = 1;
                     projectileActive = 0;
+                    projectileLifetime = 0;
                 }
             }
         }

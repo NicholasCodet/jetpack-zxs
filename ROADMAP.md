@@ -16,6 +16,7 @@ Current focus:
 - Start Milestone 5 with a minimal one-projectile B-button shooting prototype.
 - Start Milestone 4 with one moving enemy plus first shot collision and score increment.
 - Add first player damage/lives prototype with respawn, invulnerability, and game-over placeholder on enemy contact.
+- Refine hit/respawn flow so carried objects are released back into play, and add beam-shot horizontal wrap with finite lifetime.
 
 Next milestone: Milestone 4 — Enemies
 
@@ -114,6 +115,7 @@ Goal: add basic danger.
 Status: In progress
 Progress update: one placeholder enemy now moves horizontally with wrap/respawn behavior; beam-shot collision despawns the shot, respawns enemy position, and increments score on 2026-05-25. Scoring rules aligned to current reference target: enemy = 25, ship-part pickup = 100, fuel pickup = 100, deliveries = 0.
 Progress update: player/enemy contact now decrements lives, respawns the player at spawn with a short invulnerability window, updates HUD lives dynamically, and triggers a GAME OVER placeholder at 0 lives on 2026-05-25.
+Progress update: death handling now resets enemy position, releases carried ship part/fuel at the hit location, and lets released objects fall to platform/floor before becoming pickable again; beam shots now wrap horizontally and expire by lifetime on 2026-05-25.
 
 Tasks:
 
