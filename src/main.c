@@ -718,6 +718,14 @@ static int canDeliverShipPart(const ShipPart *shipParts, int partIndex)
     return 1;
 }
 
+static int canPickupShipPart(const ShipPart *shipParts, int partIndex)
+{
+    if (shipParts[partIndex].type == SHIP_PART_NOSE && !shipParts[SHIP_PART_INDEX_BODY].delivered) {
+        return 0;
+    }
+    return 1;
+}
+
 static int canDeliverFuel(const ShipPart *shipParts)
 {
     return shipParts[SHIP_PART_INDEX_BODY].delivered && shipParts[SHIP_PART_INDEX_NOSE].delivered;
@@ -1096,6 +1104,9 @@ int main(void)
         if (!stageClear && carriedPartIndex < 0 && droppingPartIndex < 0 && fuel.state != FUEL_CARRIED) {
             for (i = 0; i < SHIP_PART_COUNT; i++) {
                 if (shipParts[i].delivered || shipParts[i].dropping) {
+                    continue;
+                }
+                if (!canPickupShipPart(shipParts, i)) {
                     continue;
                 }
 

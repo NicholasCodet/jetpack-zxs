@@ -89,7 +89,7 @@ Success criteria:
 Goal: implement the main objective loop.
 
 Status: In progress
-Progress update: dirty-rectangle redraw retained, readable placeholder HUD text added, and Jetpac-like platform/ship composition refined with one pre-placed section plus two collectable parts delivered in enforced order (body then nose) using release-and-drop-to-slot behavior on 2026-05-24. Fuel loop now requires 6 deliveries with deterministic one-at-a-time sky spawns after assembly; each fuel falls, lands, becomes pickable, and auto-delivers on 2026-05-24. After 6 fuels, ship-ready and stage-clear placeholder states are now triggered in place.
+Progress update: dirty-rectangle redraw retained, readable placeholder HUD text added, and Jetpac-like platform/ship composition refined with one pre-placed section plus two collectable parts delivered in enforced order (body then nose) using release-and-drop-to-slot behavior on 2026-05-24. Nose pickup is now locked until body delivery to prevent assembly softlock. Fuel loop now requires 6 deliveries with deterministic one-at-a-time sky spawns after assembly; each fuel falls, lands, becomes pickable, and auto-delivers on 2026-05-24. After 6 fuels, ship-ready and stage-clear placeholder states are now triggered in place.
 
 Tasks:
 
