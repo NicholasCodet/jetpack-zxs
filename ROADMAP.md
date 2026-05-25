@@ -18,6 +18,7 @@ Current focus:
 - Add first player damage/lives prototype with respawn, invulnerability, and game-over placeholder on enemy contact.
 - Refine hit/respawn flow so carried objects are released back into play, and add beam-shot horizontal wrap with finite lifetime.
 - Add short death-to-respawn delay and tune beam shot lifetime to roughly half-screen travel.
+- Synchronize player/enemy hide and respawn timing during death delay.
 
 Next milestone: Milestone 4 — Enemies
 
@@ -118,6 +119,7 @@ Progress update: one placeholder enemy now moves horizontally with wrap/respawn 
 Progress update: player/enemy contact now decrements lives, respawns the player at spawn with a short invulnerability window, updates HUD lives dynamically, and triggers a GAME OVER placeholder at 0 lives on 2026-05-25.
 Progress update: death handling now resets enemy position, releases carried ship part/fuel at the hit location, and lets released objects fall to platform/floor before becoming pickable again; beam shots now wrap horizontally and expire by lifetime on 2026-05-25.
 Progress update: enemy contact now triggers a brief respawn delay before player re-entry (with invulnerability after respawn), and beam lifetime is tuned down to reduce travel range to about half a screen on 2026-05-25.
+Progress update: on enemy contact, player and enemy now disappear together during the delay, active shots are cleared, and player/enemy reappear together after respawn; enemies remain inactive on game over on 2026-05-25.
 
 Tasks:
 

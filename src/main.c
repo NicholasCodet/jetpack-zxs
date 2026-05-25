@@ -1035,6 +1035,7 @@ int main(void)
     Rect enemyRect;
     Rect hudRect;
     int playerIsActive;
+    int respawnedThisFrame;
     u16 playerColor;
     u16 keys;
     u16 keysPressed;
@@ -1131,6 +1132,7 @@ int main(void)
         oldFuel = fuel;
         changedPartCount = 0;
         fuelChanged = 0;
+        respawnedThisFrame = 0;
 
         if (invulnerableFrames > 0) {
             invulnerableFrames--;
@@ -1144,6 +1146,11 @@ int main(void)
                 playerVelX = 0;
                 playerVelY = 0;
                 invulnerableFrames = PLAYER_INVULNERABLE_FRAMES;
+                enemyActive = 1;
+                enemyX = -ENEMY_WIDTH;
+                enemyY = ENEMY_START_Y;
+                enemyVelX = ENEMY_SPEED;
+                respawnedThisFrame = 1;
             }
         }
 
@@ -1269,7 +1276,7 @@ int main(void)
                 fuelChanged = 1;
             }
 
-            if (fuel.state == FUEL_AVAILABLE && carriedPartIndex < 0) {
+            if (playerIsActive && fuel.state == FUEL_AVAILABLE && carriedPartIndex < 0) {
                 fuelRect = getFuelRect(&fuel);
                 if (rectsOverlap(&playerRect, &fuelRect)) {
                     fuel.state = FUEL_CARRIED;
@@ -1387,7 +1394,7 @@ int main(void)
             }
         }
 
-        if (enemyActive) {
+        if (enemyActive && !respawnedThisFrame) {
             enemyX += enemyVelX;
             if (enemyVelX > 0 && enemyX >= SCREEN_WIDTH) {
                 enemyX = -ENEMY_WIDTH;
@@ -1441,15 +1448,12 @@ int main(void)
                     fuelChanged = 1;
                 }
 
-                enemyActive = 1;
-                enemyX = -ENEMY_WIDTH;
-                enemyY = ENEMY_START_Y;
-                enemyVelX = ENEMY_SPEED;
+                enemyActive = 0;
+                projectileActive = 0;
+                projectileLifetime = 0;
 
                 if (lives == 0) {
                     gameOver = 1;
-                    projectileActive = 0;
-                    projectileLifetime = 0;
                     respawnDelayFrames = 0;
                 } else {
                     respawnDelayFrames = PLAYER_RESPAWN_DELAY_FRAMES;
