@@ -25,6 +25,7 @@
 #define PLAYER_MAX_FALL_SPEED TO_FIX(2)
 #define INITIAL_LIVES 4
 #define PLAYER_INVULNERABLE_FRAMES 90
+#define PLAYER_RESPAWN_DELAY_FRAMES 50
 
 #define FLOOR_TOP_Y 146
 #define FLOOR_HEIGHT ((PLAYFIELD_BOTTOM + 1) - FLOOR_TOP_Y)
@@ -133,7 +134,7 @@ typedef struct {
 #define PROJECTILE_WIDTH 18
 #define PROJECTILE_HEIGHT 2
 #define PROJECTILE_SPEED 7
-#define PROJECTILE_MAX_LIFETIME_FRAMES 48
+#define PROJECTILE_MAX_LIFETIME_FRAMES 17
 
 #define ENEMY_WIDTH 8
 #define ENEMY_HEIGHT 8
@@ -1000,6 +1001,7 @@ int main(void)
     int lives;
     int hudChanged;
     int invulnerableFrames;
+    int respawnDelayFrames;
     int gameOver;
     int projectileActive;
     int oldProjectileActive;
@@ -1032,6 +1034,7 @@ int main(void)
     Rect oldEnemyRect;
     Rect enemyRect;
     Rect hudRect;
+    int playerIsActive;
     u16 playerColor;
     u16 keys;
     u16 keysPressed;
@@ -1061,6 +1064,7 @@ int main(void)
     lives = INITIAL_LIVES;
     hudChanged = 0;
     invulnerableFrames = 0;
+    respawnDelayFrames = 0;
     gameOver = 0;
     projectileActive = 0;
     oldProjectileActive = 0;
@@ -1132,7 +1136,20 @@ int main(void)
             invulnerableFrames--;
         }
 
-        if (!gameOver) {
+        if (!gameOver && respawnDelayFrames > 0) {
+            respawnDelayFrames--;
+            if (respawnDelayFrames == 0) {
+                playerX = TO_FIX(PLAYER_SPAWN_X);
+                playerY = floorY;
+                playerVelX = 0;
+                playerVelY = 0;
+                invulnerableFrames = PLAYER_INVULNERABLE_FRAMES;
+            }
+        }
+
+        playerIsActive = !gameOver && respawnDelayFrames == 0;
+
+        if (playerIsActive) {
             if (keys & KEY_LEFT) {
                 playerVelX -= PLAYER_MOVE_ACCEL;
                 playerFacing = -1;
@@ -1197,7 +1214,7 @@ int main(void)
         pixelY = FROM_FIX(playerY);
         playerRect = getPlayerRect(pixelX, pixelY);
 
-        if (!gameOver && (keysPressed & KEY_B) && !projectileActive) {
+        if (playerIsActive && (keysPressed & KEY_B) && !projectileActive) {
             projectileActive = 1;
             projectileY = pixelY + (PLAYER_HEIGHT / 2) - (PROJECTILE_HEIGHT / 2);
             projectileVelX = playerFacing > 0 ? PROJECTILE_SPEED : -PROJECTILE_SPEED;
@@ -1209,7 +1226,7 @@ int main(void)
             }
         }
 
-        if (!gameOver && !stageClear && carriedPartIndex < 0 && droppingPartIndex < 0 && fuel.state != FUEL_CARRIED) {
+        if (playerIsActive && !stageClear && carriedPartIndex < 0 && droppingPartIndex < 0 && fuel.state != FUEL_CARRIED) {
             for (i = 0; i < SHIP_PART_COUNT; i++) {
                 if (shipParts[i].delivered || shipParts[i].dropping) {
                     continue;
@@ -1351,7 +1368,7 @@ int main(void)
         }
 
         shipReady = isShipReady(shipParts, deliveredFuelCount);
-        if (!gameOver && shipReady && !stageClear && rectsOverlap(&playerRect, &shipLaunchZoneRect)) {
+        if (playerIsActive && shipReady && !stageClear && rectsOverlap(&playerRect, &shipLaunchZoneRect)) {
             stageClear = 1;
             fuelChanged = 1;
         }
@@ -1389,7 +1406,7 @@ int main(void)
             }
         }
 
-        if (!gameOver && enemyActive && invulnerableFrames <= 0) {
+        if (playerIsActive && enemyActive && invulnerableFrames <= 0) {
             enemyRect = getEnemyRect(enemyX, enemyY);
             if (rectsOverlap(&playerRect, &enemyRect)) {
                 int deathPixelX = playerRect.x;
@@ -1400,7 +1417,7 @@ int main(void)
                     lives = 0;
                 }
                 hudChanged = 1;
-                invulnerableFrames = PLAYER_INVULNERABLE_FRAMES;
+                invulnerableFrames = 0;
 
                 if (carriedPartIndex >= 0) {
                     shipParts[carriedPartIndex].x = deathPixelX + SHIP_PART_CARRY_OFFSET_X;
@@ -1424,13 +1441,6 @@ int main(void)
                     fuelChanged = 1;
                 }
 
-                playerX = TO_FIX(PLAYER_SPAWN_X);
-                playerY = floorY;
-                playerVelX = 0;
-                playerVelY = 0;
-                pixelX = FROM_FIX(playerX);
-                pixelY = FROM_FIX(playerY);
-                playerRect = getPlayerRect(pixelX, pixelY);
                 enemyActive = 1;
                 enemyX = -ENEMY_WIDTH;
                 enemyY = ENEMY_START_Y;
@@ -1440,6 +1450,11 @@ int main(void)
                     gameOver = 1;
                     projectileActive = 0;
                     projectileLifetime = 0;
+                    respawnDelayFrames = 0;
+                } else {
+                    respawnDelayFrames = PLAYER_RESPAWN_DELAY_FRAMES;
+                    playerVelX = 0;
+                    playerVelY = 0;
                 }
             }
         }
@@ -1552,11 +1567,13 @@ int main(void)
             drawEnemy(enemyX, enemyY);
         }
 
-        playerColor = PLAYER_COLOR;
-        if (invulnerableFrames > 0 && ((invulnerableFrames / 4) & 1)) {
-            playerColor = PLAYER_HIT_COLOR;
+        if (!gameOver && respawnDelayFrames == 0) {
+            playerColor = PLAYER_COLOR;
+            if (invulnerableFrames > 0 && ((invulnerableFrames / 4) & 1)) {
+                playerColor = PLAYER_HIT_COLOR;
+            }
+            drawRect(playerRect.x, playerRect.y, PLAYER_WIDTH, PLAYER_HEIGHT, playerColor);
         }
-        drawRect(playerRect.x, playerRect.y, PLAYER_WIDTH, PLAYER_HEIGHT, playerColor);
 
         if (gameOver) {
             drawGameOverIndicator();
