@@ -23,6 +23,8 @@
 #define PLAYER_THRUST 36
 #define PLAYER_MAX_RISE_SPEED TO_FIX(2)
 #define PLAYER_MAX_FALL_SPEED TO_FIX(2)
+#define INITIAL_LIVES 4
+#define PLAYER_INVULNERABLE_FRAMES 90
 
 #define FLOOR_TOP_Y 146
 #define FLOOR_HEIGHT ((PLAYFIELD_BOTTOM + 1) - FLOOR_TOP_Y)
@@ -46,6 +48,7 @@
 #define DELIVERY_ZONE_COLOR RGB5(4, 4, 4)
 #define DELIVERY_ZONE_LINE_COLOR RGB5(8, 8, 8)
 #define PLAYER_COLOR RGB5(31, 31, 31)
+#define PLAYER_HIT_COLOR RGB5(31, 12, 12)
 #define READY_TEXT_COLOR RGB5(12, 24, 12)
 #define CLEAR_TEXT_COLOR RGB5(31, 20, 8)
 #define PROJECTILE_COLOR RGB5(26, 24, 8)
@@ -187,6 +190,8 @@ static const int fuelSpawnXs[FUEL_REQUIRED_COUNT] = { 36, 118, 192, 72, 170, 108
 #define READY_TEXT_Y 26
 #define CLEAR_TEXT_X 104
 #define CLEAR_TEXT_Y 72
+#define GAME_OVER_TEXT_X 96
+#define GAME_OVER_TEXT_Y 64
 
 static void fillScreen(u16 color)
 {
@@ -253,9 +258,11 @@ static void getFont3x5Rows(char c, unsigned char rows[5])
         case 'C': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x4; rows[3] = 0x4; rows[4] = 0x7; break;
         case 'D': rows[0] = 0x6; rows[1] = 0x5; rows[2] = 0x5; rows[3] = 0x5; rows[4] = 0x6; break;
         case 'E': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x7; rows[3] = 0x4; rows[4] = 0x7; break;
+        case 'G': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x5; rows[3] = 0x5; rows[4] = 0x7; break;
         case 'H': rows[0] = 0x5; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x5; rows[4] = 0x5; break;
         case 'I': rows[0] = 0x7; rows[1] = 0x2; rows[2] = 0x2; rows[3] = 0x2; rows[4] = 0x7; break;
         case 'L': rows[0] = 0x4; rows[1] = 0x4; rows[2] = 0x4; rows[3] = 0x4; rows[4] = 0x7; break;
+        case 'M': rows[0] = 0x5; rows[1] = 0x7; rows[2] = 0x7; rows[3] = 0x5; rows[4] = 0x5; break;
         case 'O': rows[0] = 0x7; rows[1] = 0x5; rows[2] = 0x5; rows[3] = 0x5; rows[4] = 0x7; break;
         case 'R': rows[0] = 0x7; rows[1] = 0x5; rows[2] = 0x7; rows[3] = 0x5; rows[4] = 0x5; break;
         case 'S': rows[0] = 0x7; rows[1] = 0x4; rows[2] = 0x7; rows[3] = 0x1; rows[4] = 0x7; break;
@@ -355,20 +362,29 @@ static void addScore(int *score, int *highScore, int *hudChanged, int amount)
     *hudChanged = 1;
 }
 
-static void drawHud(int score, int highScore)
+static void drawHud(int score, int highScore, int lives)
 {
     char scoreText[7];
     char highScoreText[7];
+    char livesText[2];
 
     formatScore6(score, scoreText);
     formatScore6(highScore, highScoreText);
+    if (lives < 0) {
+        lives = 0;
+    }
+    if (lives > 9) {
+        lives = 9;
+    }
+    livesText[0] = '0' + lives;
+    livesText[1] = '\0';
 
     drawRect(0, 0, SCREEN_WIDTH, HUD_HEIGHT, HUD_COLOR);
     drawText3x5(8, 3, "SCORE", HUD_TEXT_COLOR);
     drawText3x5(97, 3, "LIVES", HUD_TEXT_COLOR);
     drawText3x5(196, 3, "HI", HUD_TEXT_COLOR);
     drawText3x5(8, 11, scoreText, HUD_TEXT_COLOR);
-    drawText3x5(105, 11, "4", HUD_TEXT_COLOR);
+    drawText3x5(105, 11, livesText, HUD_TEXT_COLOR);
     drawText3x5(184, 11, highScoreText, HUD_TEXT_COLOR);
     drawRect(0, HUD_HEIGHT - 1, SCREEN_WIDTH, 1, HUD_LINE_COLOR);
 }
@@ -486,6 +502,12 @@ static void drawObjectiveIndicators(int shipReady, int stageClear)
     }
 }
 
+static void drawGameOverIndicator(void)
+{
+    drawText3x5(GAME_OVER_TEXT_X, GAME_OVER_TEXT_Y, "GAME", CLEAR_TEXT_COLOR);
+    drawText3x5(GAME_OVER_TEXT_X, GAME_OVER_TEXT_Y + 8, "OVER", CLEAR_TEXT_COLOR);
+}
+
 static Rect getPlayerRect(int playerPixelX, int playerPixelY)
 {
     Rect rect;
@@ -569,7 +591,8 @@ static void redrawStaticInRect(
     int shipReady,
     int stageClear,
     int score,
-    int highScore
+    int highScore,
+    int lives
 )
 {
     Rect hudRect;
@@ -588,7 +611,7 @@ static void redrawStaticInRect(
     hudRect.width = SCREEN_WIDTH;
     hudRect.height = HUD_HEIGHT;
     if (rectsOverlap(rect, &hudRect)) {
-        drawHud(score, highScore);
+        drawHud(score, highScore, lives);
     }
 
     floorRect.x = 0;
@@ -657,7 +680,8 @@ static void clearDynamicRect(
     int shipReady,
     int stageClear,
     int score,
-    int highScore
+    int highScore,
+    int lives
 )
 {
     if (!rectIsValid(rect)) {
@@ -674,7 +698,8 @@ static void clearDynamicRect(
         shipReady,
         stageClear,
         score,
-        highScore
+        highScore,
+        lives
     );
 }
 
@@ -686,13 +711,14 @@ static void drawStaticScene(
     int shipReady,
     int stageClear,
     int score,
-    int highScore
+    int highScore,
+    int lives
 )
 {
     int i;
 
     fillScreen(SKY_COLOR);
-    drawHud(score, highScore);
+    drawHud(score, highScore, lives);
     drawFloor();
     drawPlatforms();
     drawShipBase();
@@ -909,7 +935,10 @@ int main(void)
     int shipAssembled;
     int score;
     int highScore;
+    int lives;
     int hudChanged;
+    int invulnerableFrames;
+    int gameOver;
     int projectileActive;
     int oldProjectileActive;
     int projectileX;
@@ -940,6 +969,7 @@ int main(void)
     Rect oldEnemyRect;
     Rect enemyRect;
     Rect hudRect;
+    u16 playerColor;
     u16 keys;
     u16 keysPressed;
 
@@ -965,7 +995,10 @@ int main(void)
     playerFacing = 1;
     score = 0;
     highScore = 0;
+    lives = INITIAL_LIVES;
     hudChanged = 0;
+    invulnerableFrames = 0;
+    gameOver = 0;
     projectileActive = 0;
     oldProjectileActive = 0;
     projectileX = 0;
@@ -1001,7 +1034,8 @@ int main(void)
         shipReady,
         stageClear,
         score,
-        highScore
+        highScore,
+        lives
     );
     drawEnemy(enemyX, enemyY);
     drawRect(FROM_FIX(playerX), FROM_FIX(playerY), PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
@@ -1030,59 +1064,68 @@ int main(void)
         changedPartCount = 0;
         fuelChanged = 0;
 
-        if (keys & KEY_LEFT) {
-            playerVelX -= PLAYER_MOVE_ACCEL;
-            playerFacing = -1;
-        } else if (keys & KEY_RIGHT) {
-            playerVelX += PLAYER_MOVE_ACCEL;
-            playerFacing = 1;
-        } else if (playerVelX > 0) {
-            playerVelX -= PLAYER_FRICTION;
-            if (playerVelX < 0) {
-                playerVelX = 0;
+        if (invulnerableFrames > 0) {
+            invulnerableFrames--;
+        }
+
+        if (!gameOver) {
+            if (keys & KEY_LEFT) {
+                playerVelX -= PLAYER_MOVE_ACCEL;
+                playerFacing = -1;
+            } else if (keys & KEY_RIGHT) {
+                playerVelX += PLAYER_MOVE_ACCEL;
+                playerFacing = 1;
+            } else if (playerVelX > 0) {
+                playerVelX -= PLAYER_FRICTION;
+                if (playerVelX < 0) {
+                    playerVelX = 0;
+                }
+            } else if (playerVelX < 0) {
+                playerVelX += PLAYER_FRICTION;
+                if (playerVelX > 0) {
+                    playerVelX = 0;
+                }
             }
-        } else if (playerVelX < 0) {
-            playerVelX += PLAYER_FRICTION;
-            if (playerVelX > 0) {
-                playerVelX = 0;
+
+            if (playerVelX < -PLAYER_MAX_MOVE_SPEED) {
+                playerVelX = -PLAYER_MAX_MOVE_SPEED;
             }
-        }
+            if (playerVelX > PLAYER_MAX_MOVE_SPEED) {
+                playerVelX = PLAYER_MAX_MOVE_SPEED;
+            }
 
-        if (playerVelX < -PLAYER_MAX_MOVE_SPEED) {
-            playerVelX = -PLAYER_MAX_MOVE_SPEED;
-        }
-        if (playerVelX > PLAYER_MAX_MOVE_SPEED) {
-            playerVelX = PLAYER_MAX_MOVE_SPEED;
-        }
+            if (keys & KEY_A) {
+                playerVelY -= PLAYER_THRUST;
+            }
+            playerVelY += PLAYER_GRAVITY;
 
-        if (keys & KEY_A) {
-            playerVelY -= PLAYER_THRUST;
-        }
-        playerVelY += PLAYER_GRAVITY;
+            if (playerVelY < -PLAYER_MAX_RISE_SPEED) {
+                playerVelY = -PLAYER_MAX_RISE_SPEED;
+            }
+            if (playerVelY > PLAYER_MAX_FALL_SPEED) {
+                playerVelY = PLAYER_MAX_FALL_SPEED;
+            }
 
-        if (playerVelY < -PLAYER_MAX_RISE_SPEED) {
-            playerVelY = -PLAYER_MAX_RISE_SPEED;
-        }
-        if (playerVelY > PLAYER_MAX_FALL_SPEED) {
-            playerVelY = PLAYER_MAX_FALL_SPEED;
-        }
+            prevPlayerY = playerY;
+            playerX += playerVelX;
+            playerY += playerVelY;
+            resolvePlayerHorizontalWrap(&playerX);
 
-        prevPlayerY = playerY;
-        playerX += playerVelX;
-        playerY += playerVelY;
-        resolvePlayerHorizontalWrap(&playerX);
+            if (playerY < minY) {
+                playerY = minY;
+                if (playerVelY < 0) {
+                    playerVelY = 0;
+                }
+            }
 
-        if (playerY < minY) {
-            playerY = minY;
-            if (playerVelY < 0) {
+            resolvePlatformLanding(playerX, prevPlayerY, &playerY, &playerVelY);
+
+            if (playerY > floorY) {
+                playerY = floorY;
                 playerVelY = 0;
             }
-        }
-
-        resolvePlatformLanding(playerX, prevPlayerY, &playerY, &playerVelY);
-
-        if (playerY > floorY) {
-            playerY = floorY;
+        } else {
+            playerVelX = 0;
             playerVelY = 0;
         }
 
@@ -1090,7 +1133,7 @@ int main(void)
         pixelY = FROM_FIX(playerY);
         playerRect = getPlayerRect(pixelX, pixelY);
 
-        if ((keysPressed & KEY_B) && !projectileActive) {
+        if (!gameOver && (keysPressed & KEY_B) && !projectileActive) {
             projectileActive = 1;
             projectileY = pixelY + (PLAYER_HEIGHT / 2) - (PROJECTILE_HEIGHT / 2);
             projectileVelX = playerFacing > 0 ? PROJECTILE_SPEED : -PROJECTILE_SPEED;
@@ -1101,7 +1144,7 @@ int main(void)
             }
         }
 
-        if (!stageClear && carriedPartIndex < 0 && droppingPartIndex < 0 && fuel.state != FUEL_CARRIED) {
+        if (!gameOver && !stageClear && carriedPartIndex < 0 && droppingPartIndex < 0 && fuel.state != FUEL_CARRIED) {
             for (i = 0; i < SHIP_PART_COUNT; i++) {
                 if (shipParts[i].delivered || shipParts[i].dropping) {
                     continue;
@@ -1124,7 +1167,7 @@ int main(void)
             }
         }
 
-        if (!stageClear) {
+        if (!gameOver && !stageClear) {
             shipAssembled = isShipAssembled(shipParts);
             if (
                 fuel.state == FUEL_INACTIVE &&
@@ -1227,12 +1270,12 @@ int main(void)
         }
 
         shipReady = isShipReady(shipParts, deliveredFuelCount);
-        if (shipReady && !stageClear && rectsOverlap(&playerRect, &shipLaunchZoneRect)) {
+        if (!gameOver && shipReady && !stageClear && rectsOverlap(&playerRect, &shipLaunchZoneRect)) {
             stageClear = 1;
             fuelChanged = 1;
         }
 
-        if (projectileActive) {
+        if (!gameOver && projectileActive) {
             projectileX += projectileVelX;
             if (projectileX >= SCREEN_WIDTH || projectileX + PROJECTILE_WIDTH <= 0) {
                 projectileActive = 0;
@@ -1248,13 +1291,55 @@ int main(void)
             }
         }
 
-        if (projectileActive && enemyActive) {
+        if (!gameOver && projectileActive && enemyActive) {
             projectileRect = getProjectileRect(projectileX, projectileY);
             enemyRect = getEnemyRect(enemyX, enemyY);
             if (rectsOverlap(&projectileRect, &enemyRect)) {
                 projectileActive = 0;
                 enemyX = -ENEMY_WIDTH;
                 addScore(&score, &highScore, &hudChanged, SCORE_ENEMY_BASIC);
+            }
+        }
+
+        if (!gameOver && enemyActive && invulnerableFrames <= 0) {
+            enemyRect = getEnemyRect(enemyX, enemyY);
+            if (rectsOverlap(&playerRect, &enemyRect)) {
+                lives--;
+                if (lives < 0) {
+                    lives = 0;
+                }
+                hudChanged = 1;
+                invulnerableFrames = PLAYER_INVULNERABLE_FRAMES;
+
+                playerX = TO_FIX(PLAYER_SPAWN_X);
+                playerY = floorY;
+                playerVelX = 0;
+                playerVelY = 0;
+                pixelX = FROM_FIX(playerX);
+                pixelY = FROM_FIX(playerY);
+                playerRect = getPlayerRect(pixelX, pixelY);
+
+                if (carriedPartIndex >= 0) {
+                    shipParts[carriedPartIndex].x = pixelX + SHIP_PART_CARRY_OFFSET_X;
+                    shipParts[carriedPartIndex].y = pixelY + SHIP_PART_CARRY_OFFSET_Y;
+                    if (shipParts[carriedPartIndex].y < PLAYFIELD_TOP) {
+                        shipParts[carriedPartIndex].y = PLAYFIELD_TOP;
+                    }
+                    markPartChanged(changedParts, &changedPartCount, carriedPartIndex);
+                }
+                if (fuel.state == FUEL_CARRIED) {
+                    fuel.x = pixelX + FUEL_CARRY_OFFSET_X;
+                    fuel.y = pixelY + FUEL_CARRY_OFFSET_Y;
+                    if (fuel.y < PLAYFIELD_TOP) {
+                        fuel.y = PLAYFIELD_TOP;
+                    }
+                    fuelChanged = 1;
+                }
+
+                if (lives == 0) {
+                    gameOver = 1;
+                    projectileActive = 0;
+                }
             }
         }
 
@@ -1267,7 +1352,8 @@ int main(void)
             shipReady,
             stageClear,
             score,
-            highScore
+            highScore,
+            lives
         );
 
         if (oldProjectileActive) {
@@ -1280,7 +1366,8 @@ int main(void)
                 shipReady,
                 stageClear,
                 score,
-                highScore
+                highScore,
+                lives
             );
         }
 
@@ -1294,7 +1381,8 @@ int main(void)
                 shipReady,
                 stageClear,
                 score,
-                highScore
+                highScore,
+                lives
             );
         }
 
@@ -1309,7 +1397,8 @@ int main(void)
                 shipReady,
                 stageClear,
                 score,
-                highScore
+                highScore,
+                lives
             );
         }
 
@@ -1324,7 +1413,8 @@ int main(void)
                 shipReady,
                 stageClear,
                 score,
-                highScore
+                highScore,
+                lives
             );
         }
 
@@ -1338,7 +1428,8 @@ int main(void)
                 shipReady,
                 stageClear,
                 score,
-                highScore
+                highScore,
+                lives
             );
             hudChanged = 0;
         }
@@ -1360,6 +1451,14 @@ int main(void)
             drawEnemy(enemyX, enemyY);
         }
 
-        drawRect(playerRect.x, playerRect.y, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
+        playerColor = PLAYER_COLOR;
+        if (invulnerableFrames > 0 && ((invulnerableFrames / 4) & 1)) {
+            playerColor = PLAYER_HIT_COLOR;
+        }
+        drawRect(playerRect.x, playerRect.y, PLAYER_WIDTH, PLAYER_HEIGHT, playerColor);
+
+        if (gameOver) {
+            drawGameOverIndicator();
+        }
     }
 }
