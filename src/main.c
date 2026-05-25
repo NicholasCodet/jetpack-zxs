@@ -128,6 +128,13 @@ typedef struct {
 #define PROJECTILE_HEIGHT 2
 #define PROJECTILE_SPEED 7
 
+#define ENEMY_WIDTH 8
+#define ENEMY_HEIGHT 8
+#define ENEMY_SPEED 1
+#define ENEMY_COLOR RGB5(31, 6, 6)
+#define ENEMY_SCORE_VALUE 25
+#define ENEMY_START_Y (PLAYFIELD_TOP + 30)
+
 #define SHIP_PART_SLOT0_X (SHIP_BASE_X + 7)
 #define SHIP_PART_SLOT0_Y (SHIP_BODY_Y + 14)
 #define SHIP_PART_SLOT1_X (SHIP_BASE_X + 7)
@@ -311,15 +318,39 @@ static void drawFloor(void)
     }
 }
 
-static void drawHudPlaceholder(void)
+static void formatScore6(int value, char out[7])
 {
+    int i;
+
+    if (value < 0) {
+        value = 0;
+    }
+    if (value > 999999) {
+        value = 999999;
+    }
+
+    out[6] = '\0';
+    for (i = 5; i >= 0; i--) {
+        out[i] = '0' + (value % 10);
+        value /= 10;
+    }
+}
+
+static void drawHud(int score, int highScore)
+{
+    char scoreText[7];
+    char highScoreText[7];
+
+    formatScore6(score, scoreText);
+    formatScore6(highScore, highScoreText);
+
     drawRect(0, 0, SCREEN_WIDTH, HUD_HEIGHT, HUD_COLOR);
     drawText3x5(8, 3, "SCORE", HUD_TEXT_COLOR);
     drawText3x5(97, 3, "LIVES", HUD_TEXT_COLOR);
     drawText3x5(196, 3, "HI", HUD_TEXT_COLOR);
-    drawText3x5(8, 11, "000000", HUD_TEXT_COLOR);
+    drawText3x5(8, 11, scoreText, HUD_TEXT_COLOR);
     drawText3x5(105, 11, "4", HUD_TEXT_COLOR);
-    drawText3x5(184, 11, "000000", HUD_TEXT_COLOR);
+    drawText3x5(184, 11, highScoreText, HUD_TEXT_COLOR);
     drawRect(0, HUD_HEIGHT - 1, SCREEN_WIDTH, 1, HUD_LINE_COLOR);
 }
 
@@ -379,6 +410,11 @@ static void drawProjectile(int x, int y, int velX)
     } else {
         drawRect(x, y, 2, PROJECTILE_HEIGHT, PROJECTILE_TIP_COLOR);
     }
+}
+
+static void drawEnemy(int x, int y)
+{
+    drawRect(x, y, ENEMY_WIDTH, ENEMY_HEIGHT, ENEMY_COLOR);
 }
 
 static void drawDeliveryZone(void)
@@ -475,6 +511,17 @@ static Rect getProjectileRect(int x, int y)
     return rect;
 }
 
+static Rect getEnemyRect(int x, int y)
+{
+    Rect rect;
+
+    rect.x = x;
+    rect.y = y;
+    rect.width = ENEMY_WIDTH;
+    rect.height = ENEMY_HEIGHT;
+    return rect;
+}
+
 static int isFuelStaticVisible(const Fuel *fuel)
 {
     return fuel->state == FUEL_AVAILABLE || fuel->state == FUEL_DELIVERED;
@@ -501,7 +548,9 @@ static void redrawStaticInRect(
     int carriedPartIndex,
     int droppingPartIndex,
     int shipReady,
-    int stageClear
+    int stageClear,
+    int score,
+    int highScore
 )
 {
     Rect hudRect;
@@ -520,7 +569,7 @@ static void redrawStaticInRect(
     hudRect.width = SCREEN_WIDTH;
     hudRect.height = HUD_HEIGHT;
     if (rectsOverlap(rect, &hudRect)) {
-        drawHudPlaceholder();
+        drawHud(score, highScore);
     }
 
     floorRect.x = 0;
@@ -587,7 +636,9 @@ static void clearDynamicRect(
     int carriedPartIndex,
     int droppingPartIndex,
     int shipReady,
-    int stageClear
+    int stageClear,
+    int score,
+    int highScore
 )
 {
     if (!rectIsValid(rect)) {
@@ -602,7 +653,9 @@ static void clearDynamicRect(
         carriedPartIndex,
         droppingPartIndex,
         shipReady,
-        stageClear
+        stageClear,
+        score,
+        highScore
     );
 }
 
@@ -612,13 +665,15 @@ static void drawStaticScene(
     int carriedPartIndex,
     int droppingPartIndex,
     int shipReady,
-    int stageClear
+    int stageClear,
+    int score,
+    int highScore
 )
 {
     int i;
 
     fillScreen(SKY_COLOR);
-    drawHudPlaceholder();
+    drawHud(score, highScore);
     drawFloor();
     drawPlatforms();
     drawShipBase();
@@ -825,11 +880,19 @@ int main(void)
     int stageClear;
     int playerFacing;
     int shipAssembled;
+    int score;
+    int highScore;
+    int hudChanged;
     int projectileActive;
     int oldProjectileActive;
     int projectileX;
     int projectileY;
     int projectileVelX;
+    int enemyActive;
+    int oldEnemyActive;
+    int enemyX;
+    int enemyY;
+    int enemyVelX;
     int i;
     int changedParts[SHIP_PART_COUNT];
     int changedPartCount;
@@ -847,6 +910,9 @@ int main(void)
     Rect fuelRect;
     Rect oldProjectileRect;
     Rect projectileRect;
+    Rect oldEnemyRect;
+    Rect enemyRect;
+    Rect hudRect;
     u16 keys;
     u16 keysPressed;
 
@@ -870,11 +936,19 @@ int main(void)
     shipReady = 0;
     stageClear = 0;
     playerFacing = 1;
+    score = 0;
+    highScore = 0;
+    hudChanged = 0;
     projectileActive = 0;
     oldProjectileActive = 0;
     projectileX = 0;
     projectileY = 0;
     projectileVelX = 0;
+    enemyActive = 1;
+    oldEnemyActive = 0;
+    enemyX = -ENEMY_WIDTH;
+    enemyY = ENEMY_START_Y;
+    enemyVelX = ENEMY_SPEED;
     for (i = 0; i < SHIP_PART_COUNT; i++) {
         shipParts[i] = shipPartDefaults[i];
     }
@@ -887,8 +961,22 @@ int main(void)
     shipLaunchZoneRect.y = SHIP_LAUNCH_ZONE_Y;
     shipLaunchZoneRect.width = SHIP_LAUNCH_ZONE_WIDTH;
     shipLaunchZoneRect.height = SHIP_LAUNCH_ZONE_HEIGHT;
+    hudRect.x = 0;
+    hudRect.y = 0;
+    hudRect.width = SCREEN_WIDTH;
+    hudRect.height = HUD_HEIGHT;
 
-    drawStaticScene(shipParts, &fuel, carriedPartIndex, droppingPartIndex, shipReady, stageClear);
+    drawStaticScene(
+        shipParts,
+        &fuel,
+        carriedPartIndex,
+        droppingPartIndex,
+        shipReady,
+        stageClear,
+        score,
+        highScore
+    );
+    drawEnemy(enemyX, enemyY);
     drawRect(FROM_FIX(playerX), FROM_FIX(playerY), PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
 
     while (1) {
@@ -903,6 +991,10 @@ int main(void)
         oldProjectileActive = projectileActive;
         if (oldProjectileActive) {
             oldProjectileRect = getProjectileRect(projectileX, projectileY);
+        }
+        oldEnemyActive = enemyActive;
+        if (oldEnemyActive) {
+            oldEnemyRect = getEnemyRect(enemyX, enemyY);
         }
         for (i = 0; i < SHIP_PART_COUNT; i++) {
             oldShipParts[i] = shipParts[i];
@@ -1115,6 +1207,32 @@ int main(void)
             }
         }
 
+        if (enemyActive) {
+            enemyX += enemyVelX;
+            if (enemyVelX > 0 && enemyX >= SCREEN_WIDTH) {
+                enemyX = -ENEMY_WIDTH;
+            } else if (enemyVelX < 0 && enemyX + ENEMY_WIDTH <= 0) {
+                enemyX = SCREEN_WIDTH;
+            }
+        }
+
+        if (projectileActive && enemyActive) {
+            projectileRect = getProjectileRect(projectileX, projectileY);
+            enemyRect = getEnemyRect(enemyX, enemyY);
+            if (rectsOverlap(&projectileRect, &enemyRect)) {
+                projectileActive = 0;
+                enemyX = -ENEMY_WIDTH;
+                score += ENEMY_SCORE_VALUE;
+                if (score > 999999) {
+                    score = 999999;
+                }
+                if (score > highScore) {
+                    highScore = score;
+                }
+                hudChanged = 1;
+            }
+        }
+
         clearDynamicRect(
             &oldPlayerRect,
             shipParts,
@@ -1122,7 +1240,9 @@ int main(void)
             carriedPartIndex,
             droppingPartIndex,
             shipReady,
-            stageClear
+            stageClear,
+            score,
+            highScore
         );
 
         if (oldProjectileActive) {
@@ -1133,7 +1253,23 @@ int main(void)
                 carriedPartIndex,
                 droppingPartIndex,
                 shipReady,
-                stageClear
+                stageClear,
+                score,
+                highScore
+            );
+        }
+
+        if (oldEnemyActive) {
+            clearDynamicRect(
+                &oldEnemyRect,
+                shipParts,
+                &fuel,
+                carriedPartIndex,
+                droppingPartIndex,
+                shipReady,
+                stageClear,
+                score,
+                highScore
             );
         }
 
@@ -1146,7 +1282,9 @@ int main(void)
                 carriedPartIndex,
                 droppingPartIndex,
                 shipReady,
-                stageClear
+                stageClear,
+                score,
+                highScore
             );
         }
 
@@ -1159,8 +1297,25 @@ int main(void)
                 carriedPartIndex,
                 droppingPartIndex,
                 shipReady,
-                stageClear
+                stageClear,
+                score,
+                highScore
             );
+        }
+
+        if (hudChanged) {
+            clearDynamicRect(
+                &hudRect,
+                shipParts,
+                &fuel,
+                carriedPartIndex,
+                droppingPartIndex,
+                shipReady,
+                stageClear,
+                score,
+                highScore
+            );
+            hudChanged = 0;
         }
 
         if (carriedPartIndex >= 0) {
@@ -1175,6 +1330,9 @@ int main(void)
         if (projectileActive) {
             projectileRect = getProjectileRect(projectileX, projectileY);
             drawProjectile(projectileRect.x, projectileRect.y, projectileVelX);
+        }
+        if (enemyActive) {
+            drawEnemy(enemyX, enemyY);
         }
 
         drawRect(playerRect.x, playerRect.y, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);

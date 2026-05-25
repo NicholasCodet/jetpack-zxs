@@ -14,6 +14,7 @@ Current focus:
 - Add ship-ready and stage-clear placeholder triggers after the fuel objective.
 - Restore Jetpac-style horizontal wrap for player movement.
 - Start Milestone 5 with a minimal one-projectile B-button shooting prototype.
+- Start Milestone 4 with one moving enemy plus first shot collision and score increment.
 
 Next milestone: Milestone 4 — Enemies
 
@@ -109,6 +110,9 @@ Success criteria:
 
 Goal: add basic danger.
 
+Status: In progress
+Progress update: one placeholder enemy now moves horizontally with wrap/respawn behavior; beam-shot collision despawns the shot, respawns enemy position, and increments score on 2026-05-25.
+
 Tasks:
 
 - Add one enemy type.
@@ -128,7 +132,7 @@ Success criteria:
 Goal: let the player defend themselves.
 
 Status: In progress
-Progress update: minimal single-projectile B-button prototype added on 2026-05-24 (no enemy interactions or scoring yet). Projectile feel refined toward a fast horizontal beam-style shot on 2026-05-24.
+Progress update: minimal single-projectile B-button prototype added on 2026-05-24. Projectile feel refined toward a fast horizontal beam-style shot on 2026-05-24.
 
 Tasks:
 
