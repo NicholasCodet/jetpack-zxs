@@ -132,8 +132,11 @@ typedef struct {
 #define ENEMY_HEIGHT 8
 #define ENEMY_SPEED 1
 #define ENEMY_COLOR RGB5(31, 6, 6)
-#define ENEMY_SCORE_VALUE 25
 #define ENEMY_START_Y (PLAYFIELD_TOP + 30)
+
+#define SCORE_ENEMY_BASIC 25
+#define SCORE_SHIP_PART_PICKUP 100
+#define SCORE_FUEL_PICKUP 100
 
 #define SHIP_PART_SLOT0_X (SHIP_BASE_X + 7)
 #define SHIP_PART_SLOT0_Y (SHIP_BODY_Y + 14)
@@ -334,6 +337,22 @@ static void formatScore6(int value, char out[7])
         out[i] = '0' + (value % 10);
         value /= 10;
     }
+}
+
+static void addScore(int *score, int *highScore, int *hudChanged, int amount)
+{
+    if (amount <= 0) {
+        return;
+    }
+
+    *score += amount;
+    if (*score > 999999) {
+        *score = 999999;
+    }
+    if (*score > *highScore) {
+        *highScore = *score;
+    }
+    *hudChanged = 1;
 }
 
 static void drawHud(int score, int highScore)
@@ -1088,6 +1107,7 @@ int main(void)
                 if (rectsOverlap(&playerRect, &shipPartRect)) {
                     carriedPartIndex = i;
                     markPartChanged(changedParts, &changedPartCount, i);
+                    addScore(&score, &highScore, &hudChanged, SCORE_SHIP_PART_PICKUP);
                     break;
                 }
             }
@@ -1115,6 +1135,7 @@ int main(void)
                 if (rectsOverlap(&playerRect, &fuelRect)) {
                     fuel.state = FUEL_CARRIED;
                     fuelChanged = 1;
+                    addScore(&score, &highScore, &hudChanged, SCORE_FUEL_PICKUP);
                 }
             }
 
@@ -1222,14 +1243,7 @@ int main(void)
             if (rectsOverlap(&projectileRect, &enemyRect)) {
                 projectileActive = 0;
                 enemyX = -ENEMY_WIDTH;
-                score += ENEMY_SCORE_VALUE;
-                if (score > 999999) {
-                    score = 999999;
-                }
-                if (score > highScore) {
-                    highScore = score;
-                }
-                hudChanged = 1;
+                addScore(&score, &highScore, &hudChanged, SCORE_ENEMY_BASIC);
             }
         }
 

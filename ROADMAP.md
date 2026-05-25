@@ -111,7 +111,7 @@ Success criteria:
 Goal: add basic danger.
 
 Status: In progress
-Progress update: one placeholder enemy now moves horizontally with wrap/respawn behavior; beam-shot collision despawns the shot, respawns enemy position, and increments score on 2026-05-25.
+Progress update: one placeholder enemy now moves horizontally with wrap/respawn behavior; beam-shot collision despawns the shot, respawns enemy position, and increments score on 2026-05-25. Scoring rules aligned to current reference target: enemy = 25, ship-part pickup = 100, fuel pickup = 100, deliveries = 0.
 
 Tasks:
 
