@@ -98,6 +98,13 @@ typedef struct {
     int pickupScored;
 } Fuel;
 
+typedef struct {
+    int x;
+    int y;
+    int velX;
+    int active;
+} Enemy;
+
 #define PLATFORM_COUNT (sizeof(platforms) / sizeof(platforms[0]))
 
 #define SHIP_BASE_WIDTH 20
@@ -139,8 +146,8 @@ typedef struct {
 #define ENEMY_WIDTH 8
 #define ENEMY_HEIGHT 8
 #define ENEMY_SPEED 1
+#define ENEMY_COUNT 3
 #define ENEMY_COLOR RGB5(31, 6, 6)
-#define ENEMY_START_Y (PLAYFIELD_TOP + 30)
 
 #define SCORE_ENEMY_BASIC 25
 #define SCORE_SHIP_PART_PICKUP 100
@@ -187,6 +194,12 @@ static const ShipPart shipPartDefaults[SHIP_PART_COUNT] = {
 
 static const Fuel fuelDefault = {
     0, FUEL_SPAWN_Y, FUEL_TARGET_X, FUEL_TARGET_Y, FUEL_INACTIVE, 0
+};
+
+static const Enemy enemyDefaults[ENEMY_COUNT] = {
+    { 8, PLAYFIELD_TOP + 30, ENEMY_SPEED, 1 },
+    { 116, PLAYFIELD_TOP + 60, -ENEMY_SPEED, 1 },
+    { 208, PLAYFIELD_TOP + 92, -ENEMY_SPEED, 1 }
 };
 
 static const int fuelSpawnXs[FUEL_REQUIRED_COUNT] = { 36, 118, 192, 72, 170, 108 };
@@ -566,6 +579,47 @@ static Rect getEnemyRect(int x, int y)
     rect.width = ENEMY_WIDTH;
     rect.height = ENEMY_HEIGHT;
     return rect;
+}
+
+static void resetEnemy(Enemy *enemy, int enemyIndex)
+{
+    *enemy = enemyDefaults[enemyIndex];
+}
+
+static void resetAllEnemies(Enemy enemies[])
+{
+    int i;
+
+    for (i = 0; i < ENEMY_COUNT; i++) {
+        resetEnemy(&enemies[i], i);
+    }
+}
+
+static void deactivateAllEnemies(Enemy enemies[])
+{
+    int i;
+
+    for (i = 0; i < ENEMY_COUNT; i++) {
+        enemies[i].active = 0;
+    }
+}
+
+static void updateEnemies(Enemy enemies[])
+{
+    int i;
+
+    for (i = 0; i < ENEMY_COUNT; i++) {
+        if (!enemies[i].active) {
+            continue;
+        }
+
+        enemies[i].x += enemies[i].velX;
+        if (enemies[i].velX > 0 && enemies[i].x >= SCREEN_WIDTH) {
+            enemies[i].x = -ENEMY_WIDTH;
+        } else if (enemies[i].velX < 0 && enemies[i].x + ENEMY_WIDTH <= 0) {
+            enemies[i].x = SCREEN_WIDTH;
+        }
+    }
 }
 
 static int isFuelStaticVisible(const Fuel *fuel)
@@ -1009,11 +1063,6 @@ int main(void)
     int projectileY;
     int projectileVelX;
     int projectileLifetime;
-    int enemyActive;
-    int oldEnemyActive;
-    int enemyX;
-    int enemyY;
-    int enemyVelX;
     int i;
     int changedParts[SHIP_PART_COUNT];
     int changedPartCount;
@@ -1022,6 +1071,8 @@ int main(void)
     ShipPart oldShipParts[SHIP_PART_COUNT];
     Fuel fuel;
     Fuel oldFuel;
+    Enemy enemies[ENEMY_COUNT];
+    Enemy oldEnemies[ENEMY_COUNT];
     Rect playerRect;
     Rect oldPlayerRect;
     Rect shipDeliveryZoneRect;
@@ -1031,7 +1082,6 @@ int main(void)
     Rect fuelRect;
     Rect oldProjectileRect;
     Rect projectileRect;
-    Rect oldEnemyRect;
     Rect enemyRect;
     Rect hudRect;
     int playerIsActive;
@@ -1073,11 +1123,7 @@ int main(void)
     projectileY = 0;
     projectileVelX = 0;
     projectileLifetime = 0;
-    enemyActive = 1;
-    oldEnemyActive = 0;
-    enemyX = -ENEMY_WIDTH;
-    enemyY = ENEMY_START_Y;
-    enemyVelX = ENEMY_SPEED;
+    resetAllEnemies(enemies);
     for (i = 0; i < SHIP_PART_COUNT; i++) {
         shipParts[i] = shipPartDefaults[i];
     }
@@ -1106,7 +1152,11 @@ int main(void)
         highScore,
         lives
     );
-    drawEnemy(enemyX, enemyY);
+    for (i = 0; i < ENEMY_COUNT; i++) {
+        if (enemies[i].active) {
+            drawEnemy(enemies[i].x, enemies[i].y);
+        }
+    }
     drawRect(FROM_FIX(playerX), FROM_FIX(playerY), PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR);
 
     while (1) {
@@ -1122,9 +1172,8 @@ int main(void)
         if (oldProjectileActive) {
             oldProjectileRect = getProjectileRect(projectileX, projectileY);
         }
-        oldEnemyActive = enemyActive;
-        if (oldEnemyActive) {
-            oldEnemyRect = getEnemyRect(enemyX, enemyY);
+        for (i = 0; i < ENEMY_COUNT; i++) {
+            oldEnemies[i] = enemies[i];
         }
         for (i = 0; i < SHIP_PART_COUNT; i++) {
             oldShipParts[i] = shipParts[i];
@@ -1146,10 +1195,7 @@ int main(void)
                 playerVelX = 0;
                 playerVelY = 0;
                 invulnerableFrames = PLAYER_INVULNERABLE_FRAMES;
-                enemyActive = 1;
-                enemyX = -ENEMY_WIDTH;
-                enemyY = ENEMY_START_Y;
-                enemyVelX = ENEMY_SPEED;
+                resetAllEnemies(enemies);
                 respawnedThisFrame = 1;
             }
         }
@@ -1394,30 +1440,40 @@ int main(void)
             }
         }
 
-        if (enemyActive && !respawnedThisFrame) {
-            enemyX += enemyVelX;
-            if (enemyVelX > 0 && enemyX >= SCREEN_WIDTH) {
-                enemyX = -ENEMY_WIDTH;
-            } else if (enemyVelX < 0 && enemyX + ENEMY_WIDTH <= 0) {
-                enemyX = SCREEN_WIDTH;
-            }
+        if (!respawnedThisFrame) {
+            updateEnemies(enemies);
         }
 
-        if (!gameOver && projectileActive && enemyActive) {
+        if (!gameOver && projectileActive) {
             projectileRect = getProjectileRect(projectileX, projectileY);
-            enemyRect = getEnemyRect(enemyX, enemyY);
-            if (rectsOverlap(&projectileRect, &enemyRect)) {
-                projectileActive = 0;
-                enemyX = -ENEMY_WIDTH;
-                addScore(&score, &highScore, &hudChanged, SCORE_ENEMY_BASIC);
+            for (i = 0; i < ENEMY_COUNT; i++) {
+                if (!enemies[i].active) {
+                    continue;
+                }
+
+                enemyRect = getEnemyRect(enemies[i].x, enemies[i].y);
+                if (rectsOverlap(&projectileRect, &enemyRect)) {
+                    projectileActive = 0;
+                    resetEnemy(&enemies[i], i);
+                    addScore(&score, &highScore, &hudChanged, SCORE_ENEMY_BASIC);
+                    break;
+                }
             }
         }
 
-        if (playerIsActive && enemyActive && invulnerableFrames <= 0) {
-            enemyRect = getEnemyRect(enemyX, enemyY);
-            if (rectsOverlap(&playerRect, &enemyRect)) {
+        if (playerIsActive && invulnerableFrames <= 0) {
+            for (i = 0; i < ENEMY_COUNT; i++) {
                 int deathPixelX = playerRect.x;
                 int deathPixelY = playerRect.y;
+
+                if (!enemies[i].active) {
+                    continue;
+                }
+
+                enemyRect = getEnemyRect(enemies[i].x, enemies[i].y);
+                if (!rectsOverlap(&playerRect, &enemyRect)) {
+                    continue;
+                }
 
                 lives--;
                 if (lives < 0) {
@@ -1448,7 +1504,7 @@ int main(void)
                     fuelChanged = 1;
                 }
 
-                enemyActive = 0;
+                deactivateAllEnemies(enemies);
                 projectileActive = 0;
                 projectileLifetime = 0;
 
@@ -1460,6 +1516,7 @@ int main(void)
                     playerVelX = 0;
                     playerVelY = 0;
                 }
+                break;
             }
         }
 
@@ -1491,19 +1548,22 @@ int main(void)
             );
         }
 
-        if (oldEnemyActive) {
-            clearDynamicRect(
-                &oldEnemyRect,
-                shipParts,
-                &fuel,
-                carriedPartIndex,
-                droppingPartIndex,
-                shipReady,
-                stageClear,
-                score,
-                highScore,
-                lives
-            );
+        for (i = 0; i < ENEMY_COUNT; i++) {
+            if (oldEnemies[i].active) {
+                Rect oldEnemyRect = getEnemyRect(oldEnemies[i].x, oldEnemies[i].y);
+                clearDynamicRect(
+                    &oldEnemyRect,
+                    shipParts,
+                    &fuel,
+                    carriedPartIndex,
+                    droppingPartIndex,
+                    shipReady,
+                    stageClear,
+                    score,
+                    highScore,
+                    lives
+                );
+            }
         }
 
         for (i = 0; i < changedPartCount; i++) {
@@ -1567,8 +1627,10 @@ int main(void)
             projectileRect = getProjectileRect(projectileX, projectileY);
             drawProjectile(projectileRect.x, projectileRect.y, projectileVelX);
         }
-        if (enemyActive) {
-            drawEnemy(enemyX, enemyY);
+        for (i = 0; i < ENEMY_COUNT; i++) {
+            if (enemies[i].active) {
+                drawEnemy(enemies[i].x, enemies[i].y);
+            }
         }
 
         if (!gameOver && respawnDelayFrames == 0) {
