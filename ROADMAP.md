@@ -20,6 +20,8 @@ Current focus:
 - Add short death-to-respawn delay and tune beam shot lifetime to roughly half-screen travel.
 - Synchronize player/enemy hide and respawn timing during death delay.
 - Expand the Stage 1 prototype to three simultaneous instances of the basic enemy.
+- Polish enemy entry/respawn safety and reduce score-change HUD redraw work in the dirty renderer.
+- Reserve unique upper/middle/lower movement lanes across simultaneous active enemies.
 
 Next milestone: Milestone 4 — Enemies
 
@@ -122,6 +124,8 @@ Progress update: death handling now resets enemy position, releases carried ship
 Progress update: enemy contact now triggers a brief respawn delay before player re-entry (with invulnerability after respawn), and beam lifetime is tuned down to reduce travel range to about half a screen on 2026-05-25.
 Progress update: on enemy contact, player and enemy now disappear together during the delay, active shots are cleared, and player/enemy reappear together after respawn; enemies remain inactive on game over on 2026-05-25.
 Progress update: the basic Stage 1 enemy now uses a fixed three-instance collection with deterministic spawns, independent horizontal movement, per-enemy beam collision, and synchronized all-enemy death-delay reset on 2026-09-20.
+Progress update: all enemy creation now starts fully outside the playfield, and shot enemies wait 45 frames before deterministic re-entry. Dynamic HUD changes now redraw only value cells instead of clearing the full HUD twice, reducing visible transition blink on score-changing enemy kills and pickups on 2026-09-20.
+Progress update: enemy height lanes and entry sides are now tracked separately; active enemies exclusively reserve upper/middle/lower lanes, and waiting enemies reactivate only after selecting a free lane on 2026-09-20.
 
 Tasks:
 

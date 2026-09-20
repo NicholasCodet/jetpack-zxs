@@ -103,6 +103,9 @@ typedef struct {
     int y;
     int velX;
     int active;
+    int respawnTimer;
+    int heightSlot;
+    int entrySide;
 } Enemy;
 
 #define PLATFORM_COUNT (sizeof(platforms) / sizeof(platforms[0]))
@@ -147,6 +150,13 @@ typedef struct {
 #define ENEMY_HEIGHT 8
 #define ENEMY_SPEED 1
 #define ENEMY_COUNT 3
+#define ENEMY_RESPAWN_FRAMES 45
+#define ENEMY_HEIGHT_SLOT_UPPER 0
+#define ENEMY_HEIGHT_SLOT_MIDDLE 1
+#define ENEMY_HEIGHT_SLOT_LOWER 2
+#define ENEMY_HEIGHT_SLOT_COUNT 3
+#define ENEMY_ENTRY_LEFT 0
+#define ENEMY_ENTRY_RIGHT 1
 #define ENEMY_COLOR RGB5(31, 6, 6)
 
 #define SCORE_ENEMY_BASIC 25
@@ -196,10 +206,16 @@ static const Fuel fuelDefault = {
     0, FUEL_SPAWN_Y, FUEL_TARGET_X, FUEL_TARGET_Y, FUEL_INACTIVE, 0
 };
 
-static const Enemy enemyDefaults[ENEMY_COUNT] = {
-    { 8, PLAYFIELD_TOP + 30, ENEMY_SPEED, 1 },
-    { 116, PLAYFIELD_TOP + 60, -ENEMY_SPEED, 1 },
-    { 208, PLAYFIELD_TOP + 92, -ENEMY_SPEED, 1 }
+static const int enemyHeightSlotYs[ENEMY_HEIGHT_SLOT_COUNT] = {
+    PLAYFIELD_TOP + 30,
+    PLAYFIELD_TOP + 62,
+    PLAYFIELD_TOP + 94
+};
+
+static const int enemyInitialEntrySides[ENEMY_COUNT] = {
+    ENEMY_ENTRY_LEFT,
+    ENEMY_ENTRY_RIGHT,
+    ENEMY_ENTRY_LEFT
 };
 
 static const int fuelSpawnXs[FUEL_REQUIRED_COUNT] = { 36, 118, 192, 72, 170, 108 };
@@ -380,7 +396,7 @@ static void addScore(int *score, int *highScore, int *hudChanged, int amount)
     *hudChanged = 1;
 }
 
-static void drawHud(int score, int highScore, int lives)
+static void drawHudValues(int score, int highScore, int lives)
 {
     char scoreText[7];
     char highScoreText[7];
@@ -397,13 +413,21 @@ static void drawHud(int score, int highScore, int lives)
     livesText[0] = '0' + lives;
     livesText[1] = '\0';
 
+    drawRect(8, 11, 24, 5, HUD_COLOR);
+    drawRect(105, 11, 3, 5, HUD_COLOR);
+    drawRect(184, 11, 24, 5, HUD_COLOR);
+    drawText3x5(8, 11, scoreText, HUD_TEXT_COLOR);
+    drawText3x5(105, 11, livesText, HUD_TEXT_COLOR);
+    drawText3x5(184, 11, highScoreText, HUD_TEXT_COLOR);
+}
+
+static void drawHud(int score, int highScore, int lives)
+{
     drawRect(0, 0, SCREEN_WIDTH, HUD_HEIGHT, HUD_COLOR);
     drawText3x5(8, 3, "SCORE", HUD_TEXT_COLOR);
     drawText3x5(97, 3, "LIVES", HUD_TEXT_COLOR);
     drawText3x5(196, 3, "HI", HUD_TEXT_COLOR);
-    drawText3x5(8, 11, scoreText, HUD_TEXT_COLOR);
-    drawText3x5(105, 11, livesText, HUD_TEXT_COLOR);
-    drawText3x5(184, 11, highScoreText, HUD_TEXT_COLOR);
+    drawHudValues(score, highScore, lives);
     drawRect(0, HUD_HEIGHT - 1, SCREEN_WIDTH, 1, HUD_LINE_COLOR);
 }
 
@@ -581,9 +605,55 @@ static Rect getEnemyRect(int x, int y)
     return rect;
 }
 
-static void resetEnemy(Enemy *enemy, int enemyIndex)
+static int isEnemyHeightSlotOccupied(const Enemy enemies[], int heightSlot)
 {
-    *enemy = enemyDefaults[enemyIndex];
+    int i;
+
+    for (i = 0; i < ENEMY_COUNT; i++) {
+        if (enemies[i].active && enemies[i].heightSlot == heightSlot) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int findFreeEnemyHeightSlot(const Enemy enemies[])
+{
+    int heightSlot;
+
+    for (heightSlot = 0; heightSlot < ENEMY_HEIGHT_SLOT_COUNT; heightSlot++) {
+        if (!isEnemyHeightSlotOccupied(enemies, heightSlot)) {
+            return heightSlot;
+        }
+    }
+    return -1;
+}
+
+static void spawnEnemyOutsideScreen(Enemy *enemy, int heightSlot, int entrySide)
+{
+    enemy->y = enemyHeightSlotYs[heightSlot];
+    enemy->heightSlot = heightSlot;
+    enemy->entrySide = entrySide;
+
+    if (entrySide == ENEMY_ENTRY_LEFT) {
+        enemy->x = -ENEMY_WIDTH;
+        enemy->velX = ENEMY_SPEED;
+    } else {
+        enemy->x = SCREEN_WIDTH;
+        enemy->velX = -ENEMY_SPEED;
+    }
+
+    enemy->active = 1;
+    enemy->respawnTimer = 0;
+}
+
+static void beginEnemyRespawn(Enemy *enemy)
+{
+    enemy->active = 0;
+    enemy->respawnTimer = ENEMY_RESPAWN_FRAMES;
+    enemy->entrySide = enemy->entrySide == ENEMY_ENTRY_LEFT
+        ? ENEMY_ENTRY_RIGHT
+        : ENEMY_ENTRY_LEFT;
 }
 
 static void resetAllEnemies(Enemy enemies[])
@@ -591,7 +661,7 @@ static void resetAllEnemies(Enemy enemies[])
     int i;
 
     for (i = 0; i < ENEMY_COUNT; i++) {
-        resetEnemy(&enemies[i], i);
+        spawnEnemyOutsideScreen(&enemies[i], i, enemyInitialEntrySides[i]);
     }
 }
 
@@ -601,6 +671,7 @@ static void deactivateAllEnemies(Enemy enemies[])
 
     for (i = 0; i < ENEMY_COUNT; i++) {
         enemies[i].active = 0;
+        enemies[i].respawnTimer = 0;
     }
 }
 
@@ -610,6 +681,16 @@ static void updateEnemies(Enemy enemies[])
 
     for (i = 0; i < ENEMY_COUNT; i++) {
         if (!enemies[i].active) {
+            if (enemies[i].respawnTimer > 0) {
+                enemies[i].respawnTimer--;
+            }
+            if (enemies[i].respawnTimer == 0) {
+                int heightSlot = findFreeEnemyHeightSlot(enemies);
+
+                if (heightSlot >= 0) {
+                    spawnEnemyOutsideScreen(&enemies[i], heightSlot, enemies[i].entrySide);
+                }
+            }
             continue;
         }
 
@@ -1083,7 +1164,6 @@ int main(void)
     Rect oldProjectileRect;
     Rect projectileRect;
     Rect enemyRect;
-    Rect hudRect;
     int playerIsActive;
     int respawnedThisFrame;
     u16 playerColor;
@@ -1136,11 +1216,6 @@ int main(void)
     shipLaunchZoneRect.y = SHIP_LAUNCH_ZONE_Y;
     shipLaunchZoneRect.width = SHIP_LAUNCH_ZONE_WIDTH;
     shipLaunchZoneRect.height = SHIP_LAUNCH_ZONE_HEIGHT;
-    hudRect.x = 0;
-    hudRect.y = 0;
-    hudRect.width = SCREEN_WIDTH;
-    hudRect.height = HUD_HEIGHT;
-
     drawStaticScene(
         shipParts,
         &fuel,
@@ -1440,7 +1515,7 @@ int main(void)
             }
         }
 
-        if (!respawnedThisFrame) {
+        if (playerIsActive && !respawnedThisFrame) {
             updateEnemies(enemies);
         }
 
@@ -1454,7 +1529,7 @@ int main(void)
                 enemyRect = getEnemyRect(enemies[i].x, enemies[i].y);
                 if (rectsOverlap(&projectileRect, &enemyRect)) {
                     projectileActive = 0;
-                    resetEnemy(&enemies[i], i);
+                    beginEnemyRespawn(&enemies[i]);
                     addScore(&score, &highScore, &hudChanged, SCORE_ENEMY_BASIC);
                     break;
                 }
@@ -1599,18 +1674,7 @@ int main(void)
         }
 
         if (hudChanged) {
-            clearDynamicRect(
-                &hudRect,
-                shipParts,
-                &fuel,
-                carriedPartIndex,
-                droppingPartIndex,
-                shipReady,
-                stageClear,
-                score,
-                highScore,
-                lives
-            );
+            drawHudValues(score, highScore, lives);
             hudChanged = 0;
         }
 
